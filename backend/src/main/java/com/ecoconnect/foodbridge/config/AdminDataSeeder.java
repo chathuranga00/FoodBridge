@@ -62,3 +62,4 @@ public class AdminDataSeeder implements CommandLineRunner {
         }
     }
 }
+

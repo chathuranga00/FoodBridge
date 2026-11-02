@@ -39,3 +39,4 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
         response.getOutputStream().println(objectMapper.writeValueAsString(errorResponse));
     }
 }
+

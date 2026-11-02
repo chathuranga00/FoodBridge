@@ -40,3 +40,4 @@ public class TestRoleController {
         return ResponseEntity.ok(Map.of("message", "Authenticated user verified"));
     }
 }
+

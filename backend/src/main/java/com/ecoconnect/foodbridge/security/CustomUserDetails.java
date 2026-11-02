@@ -55,3 +55,4 @@ public class CustomUserDetails implements UserDetails {
         return Boolean.TRUE.equals(user.getIsActive());
     }
 }
+

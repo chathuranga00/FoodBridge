@@ -122,3 +122,4 @@ class RoleAccessSecurityTests {
                 .andExpect(jsonPath("$.error", is("Unauthorized")));
     }
 }
+

@@ -16,3 +16,4 @@ public class AuthResponse {
     private long expiresInMs;
     private UserResponse user;
 }
+
