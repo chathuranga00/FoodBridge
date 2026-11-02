@@ -37,3 +37,4 @@ public class PendingVerificationSummaryDto {
     private OffsetDateTime submittedAt;
     private String verificationNotes;
 }
+

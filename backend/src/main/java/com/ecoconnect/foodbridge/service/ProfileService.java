@@ -162,3 +162,4 @@ public class ProfileService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
     }
 }
+

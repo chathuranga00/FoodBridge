@@ -60,3 +60,4 @@ public class FoodListingCreateRequest {
     @NotNull(message = "Longitude is required")
     private BigDecimal longitude;
 }
+

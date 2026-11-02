@@ -7,3 +7,4 @@ ALTER TABLE businesses ADD COLUMN document_url VARCHAR(500);
 ALTER TABLE charities ADD COLUMN logo_url VARCHAR(500);
 ALTER TABLE charities ADD COLUMN document_url VARCHAR(500);
 ALTER TABLE charities ADD COLUMN operating_area VARCHAR(255);
+

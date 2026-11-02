@@ -78,3 +78,4 @@ public class VerificationGuardService {
         return charity;
     }
 }
+

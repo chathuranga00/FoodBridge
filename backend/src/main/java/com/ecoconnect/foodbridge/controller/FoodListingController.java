@@ -38,3 +38,4 @@ public class FoodListingController {
         return ResponseEntity.ok(listings);
     }
 }
+

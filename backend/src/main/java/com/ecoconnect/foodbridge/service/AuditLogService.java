@@ -30,3 +30,4 @@ public class AuditLogService {
         return auditLogRepository.save(log);
     }
 }
+

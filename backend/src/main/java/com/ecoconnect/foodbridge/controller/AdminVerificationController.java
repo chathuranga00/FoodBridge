@@ -56,3 +56,4 @@ public class AdminVerificationController {
         return ResponseEntity.ok(updated);
     }
 }
+

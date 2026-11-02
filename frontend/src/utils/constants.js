@@ -35,3 +35,4 @@ export const FOOD_SUITABILITY_TYPES = [
   { value: 'HUMAN_CONSUMPTION', label: 'Human Consumption (Strict Hygiene)' },
   { value: 'ANIMAL_FEED', label: 'Animal Feed Only (Shelters & Welfare)' },
 ]
+
