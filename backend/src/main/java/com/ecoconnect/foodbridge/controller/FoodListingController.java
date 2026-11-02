@@ -37,5 +37,18 @@ public class FoodListingController {
         List<FoodListingResponse> listings = foodListingService.getMyListings(authentication.getName());
         return ResponseEntity.ok(listings);
     }
+
+    @GetMapping("/available")
+    @PreAuthorize("hasRole('CHARITY')")
+    public ResponseEntity<List<FoodListingResponse>> getAvailableListings(Authentication authentication) {
+        List<FoodListingResponse> listings = foodListingService.getAvailableListingsForCharity(authentication.getName());
+        return ResponseEntity.ok(listings);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<FoodListingResponse> getListingById(@PathVariable java.util.UUID id) {
+        FoodListingResponse listing = foodListingService.getListingById(id);
+        return ResponseEntity.ok(listing);
+    }
 }
 

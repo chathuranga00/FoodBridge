@@ -59,6 +59,9 @@ public class ActivityRecord extends BaseEntity {
     @Column(name = "completion_timestamp")
     private OffsetDateTime completionTimestamp;
 
+    @Column(name = "quantity_kg", precision = 10, scale = 2)
+    private java.math.BigDecimal quantityKg;
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 }

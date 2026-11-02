@@ -21,6 +21,12 @@ public class FoodListingCreateRequest {
 
     private String description;
 
+    private String imageUrl;
+
+    @NotNull(message = "Food-safety confirmation is required")
+    @jakarta.validation.constraints.AssertTrue(message = "You must confirm food-safety compliance before publishing (Rule 7)")
+    private Boolean foodSafetyConfirmed;
+
     @NotBlank(message = "Food category is required")
     private String foodCategory;
 

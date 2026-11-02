@@ -39,6 +39,14 @@ public class FoodListing extends BaseEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Size(max = 500)
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    @Builder.Default
+    @Column(name = "food_safety_confirmed", nullable = false)
+    private Boolean foodSafetyConfirmed = false;
+
     @NotBlank
     @Size(max = 50)
     @Column(name = "food_category", nullable = false)

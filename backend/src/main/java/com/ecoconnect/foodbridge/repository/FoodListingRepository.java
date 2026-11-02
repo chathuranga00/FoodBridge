@@ -15,6 +15,8 @@ public interface FoodListingRepository extends JpaRepository<FoodListing, UUID> 
 
     List<FoodListing> findByBusinessId(UUID businessId);
 
+    List<FoodListing> findByBusinessIdOrderByCreatedAtDesc(UUID businessId);
+
     List<FoodListing> findByStatus(FoodListingStatus status);
 
     List<FoodListing> findBySuitabilityTypeAndStatus(FoodSuitabilityType suitabilityType, FoodListingStatus status);
@@ -22,5 +24,9 @@ public interface FoodListingRepository extends JpaRepository<FoodListing, UUID> 
     List<FoodListing> findByStatusAndExpiryDateAfter(FoodListingStatus status, OffsetDateTime dateTime);
 
     List<FoodListing> findByBusinessIdAndStatus(UUID businessId, FoodListingStatus status);
+
+    List<FoodListing> findByStatusAndSuitabilityTypeAndPickupEndAfterOrderByPickupEndAsc(FoodListingStatus status, FoodSuitabilityType suitabilityType, OffsetDateTime dateTime);
+
+    List<FoodListing> findByStatusAndPickupEndBefore(FoodListingStatus status, OffsetDateTime dateTime);
 }
 

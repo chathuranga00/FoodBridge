@@ -21,6 +21,8 @@ public class FoodListingResponse {
     private String businessName;
     private String title;
     private String description;
+    private String imageUrl;
+    private Boolean foodSafetyConfirmed;
     private String foodCategory;
     private FoodSuitabilityType suitabilityType;
     private BigDecimal quantity;
@@ -48,6 +50,8 @@ public class FoodListingResponse {
                 .businessName(entity.getBusiness().getBusinessName())
                 .title(entity.getTitle())
                 .description(entity.getDescription())
+                .imageUrl(entity.getImageUrl())
+                .foodSafetyConfirmed(entity.getFoodSafetyConfirmed())
                 .foodCategory(entity.getFoodCategory())
                 .suitabilityType(entity.getSuitabilityType())
                 .quantity(entity.getQuantity())

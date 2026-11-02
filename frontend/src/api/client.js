@@ -138,5 +138,16 @@ export const adminApi = {
 export const foodListingApi = {
   createListing: (data) => apiClient.post('/food-listings', data),
   getMyListings: () => apiClient.get('/food-listings/my-listings'),
+  getAvailable: () => apiClient.get('/food-listings/available'),
+  getById: (id) => apiClient.get(`/food-listings/${id}`),
+}
+
+// Food Rescue Workflow API
+export const foodRescueApi = {
+  createRequest: (data) => apiClient.post('/food-rescue/requests', data),
+  getCharityRequests: () => apiClient.get('/food-rescue/charity-requests'),
+  getRestaurantRequests: () => apiClient.get('/food-rescue/restaurant-requests'),
+  decideRequest: (id, data) => apiClient.post(`/food-rescue/requests/${id}/decide`, data),
+  markCollected: (id, params = {}) => apiClient.post(`/food-rescue/requests/${id}/collect`, null, { params }),
 }
 
