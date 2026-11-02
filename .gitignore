@@ -1,0 +1,66 @@
+# ===================================================================
+# FoodBridge Git Ignore
+# Team EcoConnect - Sri Lanka
+# ===================================================================
+
+# Environment files and credentials (NEVER commit live secrets)
+.env
+.env.local
+.env.*.local
+*.env
+!*.env.example
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Java / Maven
+target/
+backend/target/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven wrapper executable binary (script files mvnw and mvnw.cmd are kept)
+.mvn/wrapper/maven-wrapper.jar
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Logs
+*.log
+logs/
+backend/logs/
+
+# IDEs and Editors
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+.settings/
+.project
+.classpath
+.factorypath
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+tmp/
+temp/
+

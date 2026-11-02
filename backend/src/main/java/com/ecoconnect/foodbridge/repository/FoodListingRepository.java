@@ -1,0 +1,26 @@
+package com.ecoconnect.foodbridge.repository;
+
+import com.ecoconnect.foodbridge.model.FoodListing;
+import com.ecoconnect.foodbridge.model.enums.FoodListingStatus;
+import com.ecoconnect.foodbridge.model.enums.FoodSuitabilityType;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Repository
+public interface FoodListingRepository extends JpaRepository<FoodListing, UUID> {
+
+    List<FoodListing> findByBusinessId(UUID businessId);
+
+    List<FoodListing> findByStatus(FoodListingStatus status);
+
+    List<FoodListing> findBySuitabilityTypeAndStatus(FoodSuitabilityType suitabilityType, FoodListingStatus status);
+
+    List<FoodListing> findByStatusAndExpiryDateAfter(FoodListingStatus status, OffsetDateTime dateTime);
+
+    List<FoodListing> findByBusinessIdAndStatus(UUID businessId, FoodListingStatus status);
+}
+
