@@ -116,3 +116,27 @@ export const authApi = {
   refresh: (refreshToken) => apiClient.post('/auth/refresh', { refreshToken }),
   getMe: () => apiClient.get('/auth/me'),
 }
+
+// Profile API functions (Rule 2)
+export const profileApi = {
+  getBusinessProfile: () => apiClient.get('/profiles/business'),
+  createBusinessProfile: (data) => apiClient.post('/profiles/business', data),
+  updateBusinessProfile: (data) => apiClient.put('/profiles/business', data),
+  getCharityProfile: () => apiClient.get('/profiles/charity'),
+  createCharityProfile: (data) => apiClient.post('/profiles/charity', data),
+  updateCharityProfile: (data) => apiClient.put('/profiles/charity', data),
+}
+
+// Admin Verification API functions (Rule 1 & Rule 2)
+export const adminApi = {
+  getPendingVerifications: () => apiClient.get('/admin/verifications/pending'),
+  getVerificationDetails: (type, id) => apiClient.get(`/admin/verifications/${type}/${id}`),
+  decideVerification: (type, id, data) => apiClient.post(`/admin/verifications/${type}/${id}/decide`, data),
+}
+
+// Food Listings API (Rule 2 & Rule 7)
+export const foodListingApi = {
+  createListing: (data) => apiClient.post('/food-listings', data),
+  getMyListings: () => apiClient.get('/food-listings/my-listings'),
+}
+

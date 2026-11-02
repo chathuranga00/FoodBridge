@@ -43,6 +43,18 @@ public class Charity extends BaseEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Size(max = 500)
+    @Column(name = "logo_url")
+    private String logoUrl;
+
+    @Size(max = 500)
+    @Column(name = "document_url")
+    private String documentUrl;
+
+    @Size(max = 255)
+    @Column(name = "operating_area")
+    private String operatingArea;
+
     @Size(max = 150)
     @Column(name = "contact_person")
     private String contactPerson;

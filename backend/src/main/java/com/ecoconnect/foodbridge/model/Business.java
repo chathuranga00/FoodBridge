@@ -41,6 +41,17 @@ public class Business extends BaseEntity {
     @Column(name = "business_type", nullable = false, length = 30)
     private BusinessType businessType;
 
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @Size(max = 500)
+    @Column(name = "logo_url")
+    private String logoUrl;
+
+    @Size(max = 500)
+    @Column(name = "document_url")
+    private String documentUrl;
+
     @NotBlank
     @Size(max = 100)
     @Column(name = "registration_number", unique = true, nullable = false)
