@@ -1,14 +1,22 @@
 package com.ecoconnect.foodbridge.config;
 
+import com.ecoconnect.foodbridge.security.JwtAccessDeniedHandler;
+import com.ecoconnect.foodbridge.security.JwtAuthenticationEntryPoint;
+import com.ecoconnect.foodbridge.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
@@ -17,7 +25,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
  * Non-negotiable platform rules enforced:
  * - Rule 1: Role-based access control on every endpoint.
  * - Stateless JWT-based session model.
- * - Public access strictly restricted to health probes and designated public paths.
+ * - Passwords encrypted using standard BCrypt hash.
  */
 @Configuration
 @EnableWebSecurity
@@ -25,9 +33,28 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig {
 
     private final CorsConfigurationSource corsConfigurationSource;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
-    public SecurityConfig(CorsConfigurationSource corsConfigurationSource) {
+    public SecurityConfig(CorsConfigurationSource corsConfigurationSource,
+                          JwtAuthenticationFilter jwtAuthenticationFilter,
+                          JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+                          JwtAccessDeniedHandler jwtAccessDeniedHandler) {
         this.corsConfigurationSource = corsConfigurationSource;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
+        this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
     }
 
     @Bean
@@ -39,10 +66,16 @@ public class SecurityConfig {
             // Disable CSRF for stateless RESTful APIs
             .csrf(AbstractHttpConfigurer::disable)
 
+            // Exception handling with uniform JSON format
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                .accessDeniedHandler(jwtAccessDeniedHandler)
+            )
+
             // Stateless session management
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            // Frame options disabled for H2 console development if needed
+            // Frame options disabled for H2 console development
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
 
             // Endpoint authorization
@@ -50,14 +83,23 @@ public class SecurityConfig {
                 // Public health check and info
                 .requestMatchers("/api/health").permitAll()
                 // Public authentication and guest endpoints
-                .requestMatchers("/api/auth/**", "/api/public/**").permitAll()
+                .requestMatchers(
+                    "/api/auth/register",
+                    "/api/auth/login",
+                    "/api/auth/refresh",
+                    "/api/public/**"
+                ).permitAll()
+                // Current authenticated user profile
+                .requestMatchers("/api/auth/me").authenticated()
                 // Local dev H2 console
                 .requestMatchers("/h2-console/**").permitAll()
                 // Any other endpoint requires authentication (RBAC rules apply)
                 .anyRequest().authenticated()
-            );
+            )
+
+            // Add JWT filter
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 }
-
