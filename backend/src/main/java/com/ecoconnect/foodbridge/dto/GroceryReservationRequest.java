@@ -17,3 +17,4 @@ public class GroceryReservationRequest {
     @Min(value = 1, message = "Reservation quantity must be at least 1")
     private Integer quantity;
 }
+

@@ -23,3 +23,4 @@ public interface GroceryReservationRepository extends JpaRepository<GroceryReser
 
     List<GroceryReservation> findByStatusAndExpiresAtBefore(GroceryReservationStatus status, OffsetDateTime dateTime);
 }
+

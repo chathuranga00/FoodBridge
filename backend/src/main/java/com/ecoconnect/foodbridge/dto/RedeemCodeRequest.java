@@ -15,3 +15,4 @@ public class RedeemCodeRequest {
     @NotBlank(message = "Redemption code is required")
     private String redemptionCode;
 }
+

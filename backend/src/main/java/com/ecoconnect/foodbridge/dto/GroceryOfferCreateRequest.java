@@ -66,3 +66,4 @@ public class GroceryOfferCreateRequest {
     @AssertTrue(message = "You must confirm that the product is eligible, safe, and complies with best-before guidelines")
     private Boolean safetyConfirmed;
 }
+

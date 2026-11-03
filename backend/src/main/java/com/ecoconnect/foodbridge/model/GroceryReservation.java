@@ -72,3 +72,4 @@ public class GroceryReservation extends BaseEntity {
     @Column(name = "expires_at", nullable = false)
     private OffsetDateTime expiresAt;
 }
+
