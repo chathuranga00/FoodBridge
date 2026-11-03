@@ -111,11 +111,11 @@ ON CONFLICT (registration_number) DO UPDATE SET
   updated_at = NOW();
 
 -- Registered Feeding Locations
-INSERT INTO animal_locations (id, animal_org_id, location_name, target_animals, animal_count, feeding_time, latitude, longitude, city, address_line, urgency_level, is_active, created_at, updated_at)
+INSERT INTO animal_locations (id, animal_org_id, location_name, animal_type, estimated_count, feeding_routine, latitude, longitude, district, city, address_line, urgency_level, is_active, created_at, updated_at)
 VALUES
-  ('c3000000-0000-0000-0000-000000000001', 'c2000000-0000-0000-0000-000000000001', 'Kundasale Sanctuary Animal Feeding Point [DEMO DATA]', 'DOG', 65, 'Daily 8:00 AM & 5:00 PM', 7.2860, 80.6810, 'Kundasale', 'Kundasale Sanctuary Main Yard', 'NORMAL', true, NOW() - INTERVAL '30 days', NOW()),
-  ('c3000000-0000-0000-0000-000000000002', 'c2000000-0000-0000-0000-000000000001', 'Katugastota Mahaweli Riverbank Feeding Spot [DEMO DATA]', 'DOG_CAT', 40, 'Every evening at 6:00 PM', 7.3240, 80.6170, 'Katugastota', 'Near Mahaweli Bridge Riverbank', 'NORMAL', true, NOW() - INTERVAL '25 days', NOW()),
-  ('c3000000-0000-0000-0000-000000000003', 'c2000000-0000-0000-0000-000000000001', 'Digana Victoria Reservoir Foothills Habitat [DEMO DATA]', 'MIXED_COMMUNITY', 50, 'Morning 7:30 AM', 7.2980, 80.7440, 'Digana', 'Victoria Dam Foothills Approach', 'NORMAL', true, NOW() - INTERVAL '20 days', NOW())
+  ('c3000000-0000-0000-0000-000000000001', 'c2000000-0000-0000-0000-000000000001', 'Kundasale Sanctuary Animal Feeding Point [DEMO DATA]', 'DOG', 65, 'Daily 8:00 AM & 5:00 PM', 7.2860, 80.6810, 'Kandy', 'Kundasale', 'Kundasale Sanctuary Main Yard', 'NORMAL', true, NOW() - INTERVAL '30 days', NOW()),
+  ('c3000000-0000-0000-0000-000000000002', 'c2000000-0000-0000-0000-000000000001', 'Katugastota Mahaweli Riverbank Feeding Spot [DEMO DATA]', 'DOG_CAT', 40, 'Every evening at 6:00 PM', 7.3240, 80.6170, 'Kandy', 'Katugastota', 'Near Mahaweli Bridge Riverbank', 'NORMAL', true, NOW() - INTERVAL '25 days', NOW()),
+  ('c3000000-0000-0000-0000-000000000003', 'c2000000-0000-0000-0000-000000000001', 'Digana Victoria Reservoir Foothills Habitat [DEMO DATA]', 'MIXED_COMMUNITY', 50, 'Morning 7:30 AM', 7.2980, 80.7440, 'Kandy', 'Digana', 'Victoria Dam Foothills Approach', 'NORMAL', true, NOW() - INTERVAL '20 days', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- Animal Feed Requirements (Rule 7 Separation Enforced)
