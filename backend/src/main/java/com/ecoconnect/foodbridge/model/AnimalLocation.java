@@ -61,6 +61,19 @@ public class AnimalLocation extends BaseEntity {
     @Column(name = "district", nullable = false)
     private String district;
 
+    @Size(max = 100)
+    @Column(name = "city")
+    private String city;
+
+    @Size(max = 255)
+    @Column(name = "address_line")
+    private String addressLine;
+
+    @Size(max = 30)
+    @Builder.Default
+    @Column(name = "urgency_level")
+    private String urgencyLevel = "NORMAL";
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 

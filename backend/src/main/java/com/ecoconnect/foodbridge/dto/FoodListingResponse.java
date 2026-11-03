@@ -25,6 +25,7 @@ public class FoodListingResponse {
     private Boolean foodSafetyConfirmed;
     private String foodCategory;
     private FoodSuitabilityType suitabilityType;
+    private Boolean animalSuitable;
     private BigDecimal quantity;
     private String unit;
     private Boolean perishable;
@@ -54,6 +55,7 @@ public class FoodListingResponse {
                 .foodSafetyConfirmed(entity.getFoodSafetyConfirmed())
                 .foodCategory(entity.getFoodCategory())
                 .suitabilityType(entity.getSuitabilityType())
+                .animalSuitable(entity.getAnimalSuitable())
                 .quantity(entity.getQuantity())
                 .unit(entity.getUnit())
                 .perishable(entity.getPerishable())

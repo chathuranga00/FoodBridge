@@ -146,6 +146,7 @@ export const foodListingApi = {
 export const foodRescueApi = {
   createRequest: (data) => apiClient.post('/food-rescue/requests', data),
   getCharityRequests: () => apiClient.get('/food-rescue/charity-requests'),
+  getAnimalOrgRequests: () => apiClient.get('/food-rescue/animal-org-requests'),
   getRestaurantRequests: () => apiClient.get('/food-rescue/restaurant-requests'),
   decideRequest: (id, data) => apiClient.post(`/food-rescue/requests/${id}/decide`, data),
   markCollected: (id, params = {}) => apiClient.post(`/food-rescue/requests/${id}/collect`, null, { params }),
@@ -276,6 +277,25 @@ export const volunteerApi = {
   getAttendees: (id) => apiClient.get(`/volunteer/opportunities/${id}/attendees`),
   markAttendance: (opportunityId, participationId, data) =>
     apiClient.post(`/volunteer/opportunities/${opportunityId}/attendees/${participationId}/attendance`, data),
+}
+
+// Animal Welfare Support API (Rule 7 Feeding points, Feed requirements, Surplus feed collections)
+export const animalWelfareApi = {
+  getMyProfile: () => apiClient.get('/animal-welfare/profile'),
+  updateMyProfile: (data) => apiClient.put('/animal-welfare/profile', data),
+  getOrganizations: () => apiClient.get('/animal-welfare/organizations'),
+  getLocations: (params) => apiClient.get('/animal-welfare/locations', { params }),
+  getMyLocations: () => apiClient.get('/animal-welfare/my-locations'),
+  createLocation: (data) => apiClient.post('/animal-welfare/locations', data),
+  updateLocation: (id, data) => apiClient.put(`/animal-welfare/locations/${id}`, data),
+  deleteLocation: (id) => apiClient.delete(`/animal-welfare/locations/${id}`),
+  getRequirements: (params) => apiClient.get('/animal-welfare/requirements', { params }),
+  getMyRequirements: () => apiClient.get('/animal-welfare/my-requirements'),
+  createRequirement: (data) => apiClient.post('/animal-welfare/requirements', data),
+  updateRequirement: (id, data) => apiClient.put(`/animal-welfare/requirements/${id}`, data),
+  deleteRequirement: (id) => apiClient.delete(`/animal-welfare/requirements/${id}`),
+  getAvailableFeed: () => apiClient.get('/animal-welfare/available-feed'),
+  getAnimalOrgRequests: () => apiClient.get('/food-rescue/animal-org-requests'),
 }
 
 

@@ -21,6 +21,7 @@ import {
   Map as MapIcon,
   ChevronRight,
   Sparkles,
+  Dog,
 } from 'lucide-react'
 import { mapApi } from '../../api/client'
 import { ensureLeafletMarkerCluster } from '../../utils/leafletCluster'
@@ -89,6 +90,10 @@ const PIN_ICONS = {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
       <path d="m9 12 2 2 4-4"></path>
+    </svg>`,
+  FEEDING_LOCATION: `
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 11c-1.66 0-3 1.34-3 3 0 1.9 1.7 3.9 3 5.3 1.3-1.4 3-3.4 3-5.3 0-1.66-1.34-3-3-3zm-6-2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-9-5c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
     </svg>`,
 }
 
@@ -229,6 +234,7 @@ export default function ExploreMap() {
       else if (marker.markerType === 'CAMPAIGN') pinClass = 'pin-campaign'
       else if (marker.markerType === 'BUSINESS') pinClass = 'pin-business'
       else if (marker.markerType === 'CHARITY') pinClass = 'pin-charity'
+      else if (marker.markerType === 'FEEDING_LOCATION') pinClass = 'pin-animal'
 
       const iconHtml = PIN_ICONS[marker.markerType] || PIN_ICONS.FOOD_LISTING
 
@@ -282,6 +288,9 @@ export default function ExploreMap() {
     } else if (marker.markerType === 'CHARITY') {
       typeBadgeLabel = 'Charity Center'
       typeBadgeStyle = 'background: #ede9fe; color: #6d28d9;'
+    } else if (marker.markerType === 'FEEDING_LOCATION') {
+      typeBadgeLabel = 'Animal Feeding Point'
+      typeBadgeStyle = 'background: #ffedd5; color: #c2410c;'
     }
 
     const campaignSafetyNotice =
@@ -515,6 +524,7 @@ export default function ExploreMap() {
     CAMPAIGN: markers.filter((m) => m.markerType === 'CAMPAIGN').length,
     BUSINESS: markers.filter((m) => m.markerType === 'BUSINESS').length,
     CHARITY: markers.filter((m) => m.markerType === 'CHARITY').length,
+    FEEDING_LOCATION: markers.filter((m) => m.markerType === 'FEEDING_LOCATION').length,
   }
 
   return (
@@ -752,6 +762,19 @@ export default function ExploreMap() {
             Charity Hubs
             <span className="type-pill-count">{counts.CHARITY}</span>
           </button>
+
+          <button
+            type="button"
+            className={`type-pill ${selectedType === 'FEEDING_LOCATION' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedType('FEEDING_LOCATION')
+              fetchMarkerData({ type: 'FEEDING_LOCATION' })
+            }}
+          >
+            <Dog size={14} style={{ color: selectedType === 'FEEDING_LOCATION' ? '#ffffff' : '#ea580c' }} />
+            Animal Feeding
+            <span className="type-pill-count">{counts.FEEDING_LOCATION}</span>
+          </button>
         </div>
 
         {/* Location Error alert if any */}
@@ -879,6 +902,9 @@ export default function ExploreMap() {
                 } else if (marker.markerType === 'CHARITY') {
                   badgeText = 'Charity Hub'
                   badgeClass = 'badge-purple'
+                } else if (marker.markerType === 'FEEDING_LOCATION') {
+                  badgeText = 'Animal Feeding'
+                  badgeClass = 'badge-amber'
                 }
 
                 return (

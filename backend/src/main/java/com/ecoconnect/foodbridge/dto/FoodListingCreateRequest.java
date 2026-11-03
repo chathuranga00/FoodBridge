@@ -33,6 +33,9 @@ public class FoodListingCreateRequest {
     @NotNull(message = "Suitability type is required (HUMAN_CONSUMPTION or ANIMAL_FEED)")
     private FoodSuitabilityType suitabilityType;
 
+    @Builder.Default
+    private Boolean animalSuitable = false;
+
     @NotNull(message = "Quantity is required")
     @Positive(message = "Quantity must be greater than zero")
     private BigDecimal quantity;

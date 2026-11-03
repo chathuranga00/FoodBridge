@@ -25,10 +25,10 @@ public class FoodRescueController {
     }
 
     /**
-     * Verified charities browse available listings and send a request.
+     * Verified charities and animal organizations browse available listings and send a request.
      */
     @PostMapping("/requests")
-    @PreAuthorize("hasRole('CHARITY')")
+    @PreAuthorize("hasAnyRole('CHARITY', 'ANIMAL_ORG')")
     public ResponseEntity<FoodRequestResponse> createRequest(
             Authentication authentication,
             @Valid @RequestBody FoodRequestCreateDto dto) {
@@ -43,6 +43,16 @@ public class FoodRescueController {
     @PreAuthorize("hasRole('CHARITY')")
     public ResponseEntity<List<FoodRequestResponse>> getCharityRequests(Authentication authentication) {
         List<FoodRequestResponse> requests = foodRescueService.getRequestsForCharity(authentication.getName());
+        return ResponseEntity.ok(requests);
+    }
+
+    /**
+     * Animal Organization views all their sent food rescue requests.
+     */
+    @GetMapping("/animal-org-requests")
+    @PreAuthorize("hasRole('ANIMAL_ORG')")
+    public ResponseEntity<List<FoodRequestResponse>> getAnimalOrgRequests(Authentication authentication) {
+        List<FoodRequestResponse> requests = foodRescueService.getRequestsForAnimalOrg(authentication.getName());
         return ResponseEntity.ok(requests);
     }
 

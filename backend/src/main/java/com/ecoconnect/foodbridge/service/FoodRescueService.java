@@ -30,6 +30,7 @@ public class FoodRescueService {
     private final UserRepository userRepository;
     private final BusinessRepository businessRepository;
     private final CharityRepository charityRepository;
+    private final AnimalOrganizationRepository animalOrganizationRepository;
     private final ActivityRecordRepository activityRecordRepository;
     private final ImpactRecordRepository impactRecordRepository;
     private final VerificationGuardService verificationGuardService;
@@ -41,6 +42,7 @@ public class FoodRescueService {
                              UserRepository userRepository,
                              BusinessRepository businessRepository,
                              CharityRepository charityRepository,
+                             AnimalOrganizationRepository animalOrganizationRepository,
                              ActivityRecordRepository activityRecordRepository,
                              ImpactRecordRepository impactRecordRepository,
                              VerificationGuardService verificationGuardService,
@@ -51,6 +53,7 @@ public class FoodRescueService {
         this.userRepository = userRepository;
         this.businessRepository = businessRepository;
         this.charityRepository = charityRepository;
+        this.animalOrganizationRepository = animalOrganizationRepository;
         this.activityRecordRepository = activityRecordRepository;
         this.impactRecordRepository = impactRecordRepository;
         this.verificationGuardService = verificationGuardService;
@@ -59,15 +62,15 @@ public class FoodRescueService {
     }
 
     /**
-     * Verified charities browse available listings and send a request.
+     * Verified charities or animal organizations browse available listings and send a request.
+     * Enforces Rule 7 suitability separation:
+     * - Charities can ONLY request food marked for HUMAN_CONSUMPTION.
+     * - Animal organizations can request food marked for ANIMAL_FEED, OR listings marked for HUMAN_CONSUMPTION that have animalSuitable = true.
      */
     @Transactional
-    public FoodRequestResponse requestListing(String charityEmail, FoodRequestCreateDto dto) {
-        User user = userRepository.findByEmail(charityEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + charityEmail));
-
-        // Rule 2 check: Charity must be admin-VERIFIED
-        Charity charity = verificationGuardService.assertCharityVerifiedForPublishing(user);
+    public FoodRequestResponse requestListing(String requesterEmail, FoodRequestCreateDto dto) {
+        User user = userRepository.findByEmail(requesterEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + requesterEmail));
 
         // Auto-expire listings first
         foodListingService.expirePastListings();
@@ -89,40 +92,85 @@ public class FoodRescueService {
             throw new BadRequestException("Listing is not available for request. Current status: " + listing.getStatus());
         }
 
-        // Rule 7 check: Only HUMAN_CONSUMPTION for charities
-        if (listing.getSuitabilityType() != FoodSuitabilityType.HUMAN_CONSUMPTION) {
-            throw new BadRequestException("Charities may only request food marked for HUMAN_CONSUMPTION (Rule 7).");
-        }
-
         // Validate quantity requested
         if (dto.getQuantityRequested().compareTo(listing.getQuantity()) > 0) {
             throw new BadRequestException("Requested quantity (" + dto.getQuantityRequested() + ") exceeds available quantity (" + listing.getQuantity() + ").");
         }
 
-        // Prevent duplicate pending/accepted requests by same charity
-        boolean alreadyRequested = foodRequestRepository.existsByListingIdAndCharityIdAndStatusIn(
-                listing.getId(),
-                charity.getId(),
-                List.of(FoodRequestStatus.PENDING, FoodRequestStatus.ACCEPTED)
-        );
-        if (alreadyRequested) {
-            throw new BadRequestException("You already have an active request pending or accepted for this food listing.");
+        FoodRequest foodRequest;
+
+        if (user.getRole() == Role.CHARITY) {
+            // Rule 2 check: Charity must be admin-VERIFIED
+            Charity charity = verificationGuardService.assertCharityVerifiedForPublishing(user);
+
+            // Rule 7 check: Only HUMAN_CONSUMPTION for charities
+            if (listing.getSuitabilityType() != FoodSuitabilityType.HUMAN_CONSUMPTION) {
+                throw new BadRequestException("Charities may only request food marked for HUMAN_CONSUMPTION (Rule 7).");
+            }
+
+            // Prevent duplicate pending/accepted requests by same charity
+            boolean alreadyRequested = foodRequestRepository.existsByListingIdAndCharityIdAndStatusIn(
+                    listing.getId(),
+                    charity.getId(),
+                    List.of(FoodRequestStatus.PENDING, FoodRequestStatus.ACCEPTED)
+            );
+            if (alreadyRequested) {
+                throw new BadRequestException("You already have an active request pending or accepted for this food listing.");
+            }
+
+            foodRequest = FoodRequest.builder()
+                    .listing(listing)
+                    .requesterType(RequesterType.CHARITY)
+                    .charity(charity)
+                    .quantityRequested(dto.getQuantityRequested())
+                    .status(FoodRequestStatus.PENDING)
+                    .notes(dto.getNotes())
+                    .build();
+
+            log.info("Charity [{}] requested {} {} from listing [{}]",
+                    charity.getCharityName(), dto.getQuantityRequested(), listing.getUnit(), listing.getTitle());
+
+        } else if (user.getRole() == Role.ANIMAL_ORG) {
+            // Rule 2 check: Animal Org must be admin-VERIFIED
+            AnimalOrganization animalOrg = verificationGuardService.assertAnimalOrgVerifiedForPublishing(user);
+
+            // Rule 7 separation check:
+            // Animal orgs can request ANIMAL_FEED, OR HUMAN_CONSUMPTION only if marked animal-suitable
+            boolean isAnimalFeed = listing.getSuitabilityType() == FoodSuitabilityType.ANIMAL_FEED;
+            boolean isAnimalSuitable = Boolean.TRUE.equals(listing.getAnimalSuitable());
+
+            if (!isAnimalFeed && !isAnimalSuitable) {
+                throw new BadRequestException("This listing is designated strictly for human consumption and has not been marked as animal-suitable (Rule 7).");
+            }
+
+            // Prevent duplicate pending/accepted requests by same animal org
+            boolean alreadyRequested = foodRequestRepository.existsByListingIdAndAnimalOrgIdAndStatusIn(
+                    listing.getId(),
+                    animalOrg.getId(),
+                    List.of(FoodRequestStatus.PENDING, FoodRequestStatus.ACCEPTED)
+            );
+            if (alreadyRequested) {
+                throw new BadRequestException("You already have an active request pending or accepted for this food listing.");
+            }
+
+            foodRequest = FoodRequest.builder()
+                    .listing(listing)
+                    .requesterType(RequesterType.ANIMAL_ORG)
+                    .animalOrg(animalOrg)
+                    .quantityRequested(dto.getQuantityRequested())
+                    .status(FoodRequestStatus.PENDING)
+                    .notes(dto.getNotes())
+                    .build();
+
+            log.info("Animal Organization [{}] requested {} {} from listing [{}] (suitability: {}, animalSuitable: {})",
+                    animalOrg.getOrganizationName(), dto.getQuantityRequested(), listing.getUnit(), listing.getTitle(),
+                    listing.getSuitabilityType(), listing.getAnimalSuitable());
+
+        } else {
+            throw new BadRequestException("Only verified charities or animal organizations can request surplus food.");
         }
 
-        FoodRequest foodRequest = FoodRequest.builder()
-                .listing(listing)
-                .requesterType(RequesterType.CHARITY)
-                .charity(charity)
-                .quantityRequested(dto.getQuantityRequested())
-                .status(FoodRequestStatus.PENDING)
-                .notes(dto.getNotes())
-                .build();
-
         FoodRequest saved = foodRequestRepository.save(foodRequest);
-
-        log.info("Charity [{}] requested {} {} from listing [{}]",
-                charity.getCharityName(), dto.getQuantityRequested(), listing.getUnit(), listing.getTitle());
-
         return FoodRequestResponse.fromEntity(saved);
     }
 
@@ -275,18 +323,24 @@ public class FoodRescueService {
         BigDecimal quantityKg = convertToKg(request.getQuantityRequested(), listing.getUnit());
 
         // Create ActivityRecord (Rule 4)
+        User verifiedBy = request.getCharity() != null ? request.getCharity().getUser() :
+                (request.getAnimalOrg() != null ? request.getAnimalOrg().getUser() : null);
+
+        String beneficiaryName = request.getCharity() != null ? request.getCharity().getCharityName() :
+                (request.getAnimalOrg() != null ? request.getAnimalOrg().getOrganizationName() : "Beneficiary");
+
         ActivityRecord activityRecord = ActivityRecord.builder()
                 .activityType("FOOD_RESCUE")
                 .relatedListing(listing)
                 .performedByUser(user)
-                .verifiedByUser(request.getCharity() != null ? request.getCharity().getUser() : null)
+                .verifiedByUser(verifiedBy)
                 .status(ActivityStatus.COMPLETED)
                 .quantityKg(quantityKg)
                 .completionTimestamp(now)
                 .notes(String.format("Surplus food rescue completed: %.2f kg of %s claimed by %s",
                         quantityKg,
                         listing.getTitle(),
-                        request.getCharity() != null ? request.getCharity().getCharityName() : "Beneficiary"))
+                        beneficiaryName))
                 .build();
 
         ActivityRecord savedActivity = activityRecordRepository.save(activityRecord);
@@ -295,22 +349,42 @@ public class FoodRescueService {
         int estimatedMeals = quantityKg.divide(new BigDecimal("0.40"), 0, RoundingMode.HALF_UP).intValue();
         BigDecimal co2Savings = quantityKg.multiply(new BigDecimal("2.50")).setScale(2, RoundingMode.HALF_UP);
 
+        boolean isAnimalOrg = request.getAnimalOrg() != null;
+
         ImpactRecord impactRecord = ImpactRecord.builder()
                 .activityRecord(savedActivity)
                 .mealsRescued(estimatedMeals)
                 .foodWeightKg(quantityKg)
                 .co2SavingsKg(co2Savings)
-                .peopleFed(estimatedMeals)
-                .animalsFed(0)
+                .peopleFed(isAnimalOrg ? 0 : estimatedMeals)
+                .animalsFed(isAnimalOrg ? estimatedMeals : 0)
                 .calculatedAt(now)
                 .build();
 
         impactRecordRepository.save(impactRecord);
 
-        log.info("Marked request [{}] COLLECTED. Created ActivityRecord [{}] and ImpactRecord ({} kg, {} meals).",
-                request.getId(), savedActivity.getId(), quantityKg, estimatedMeals);
+        log.info("Marked request [{}] COLLECTED. Created ActivityRecord [{}] and ImpactRecord ({} kg, {} meals, peopleFed: {}, animalsFed: {}).",
+                request.getId(), savedActivity.getId(), quantityKg, estimatedMeals,
+                isAnimalOrg ? 0 : estimatedMeals, isAnimalOrg ? estimatedMeals : 0);
 
         return FoodRequestResponse.fromEntity(request);
+    }
+
+    /**
+     * Lists outgoing requests submitted by an animal organization.
+     */
+    @Transactional(readOnly = true)
+    public List<FoodRequestResponse> getRequestsForAnimalOrg(String animalOrgEmail) {
+        User user = userRepository.findByEmail(animalOrgEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + animalOrgEmail));
+
+        AnimalOrganization org = animalOrganizationRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new BadRequestException("No animal organization profile found for this user"));
+
+        return foodRequestRepository.findByAnimalOrgIdOrderByCreatedAtDesc(org.getId())
+                .stream()
+                .map(FoodRequestResponse::fromEntity)
+                .toList();
     }
 
     private BigDecimal convertToKg(BigDecimal quantity, String unit) {

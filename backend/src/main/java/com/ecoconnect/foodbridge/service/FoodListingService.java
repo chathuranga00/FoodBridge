@@ -87,6 +87,7 @@ public class FoodListingService {
                 .foodSafetyConfirmed(true)
                 .foodCategory(request.getFoodCategory())
                 .suitabilityType(request.getSuitabilityType())
+                .animalSuitable(Boolean.TRUE.equals(request.getAnimalSuitable()))
                 .quantity(request.getQuantity())
                 .unit(request.getUnit())
                 .perishable(request.getPerishable() != null ? request.getPerishable() : true)

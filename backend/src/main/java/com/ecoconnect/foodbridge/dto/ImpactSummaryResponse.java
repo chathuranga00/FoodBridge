@@ -21,6 +21,7 @@ public class ImpactSummaryResponse {
     private Long completedCampaigns;
     private Long resourcesDistributed;
     private Long peopleSupported;
+    private Long animalsFed;
     private Long activeVolunteers;
     private Long totalVolunteerHours;
     private Long completedVolunteerActivities;

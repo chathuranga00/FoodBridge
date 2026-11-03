@@ -1,11 +1,13 @@
 package com.ecoconnect.foodbridge.service;
 
 import com.ecoconnect.foodbridge.exception.BadRequestException;
+import com.ecoconnect.foodbridge.model.AnimalOrganization;
 import com.ecoconnect.foodbridge.model.Business;
 import com.ecoconnect.foodbridge.model.Charity;
 import com.ecoconnect.foodbridge.model.User;
 import com.ecoconnect.foodbridge.model.enums.Role;
 import com.ecoconnect.foodbridge.model.enums.VerificationStatus;
+import com.ecoconnect.foodbridge.repository.AnimalOrganizationRepository;
 import com.ecoconnect.foodbridge.repository.BusinessRepository;
 import com.ecoconnect.foodbridge.repository.CharityRepository;
 import org.springframework.stereotype.Service;
@@ -14,18 +16,21 @@ import java.util.Optional;
 
 /**
  * Service to enforce platform Rule 2:
- * "Businesses and charities must be admin-VERIFIED before they can publish."
+ * "Businesses and non-profits (charities, animal organizations) must be admin-VERIFIED before they can publish."
  */
 @Service
 public class VerificationGuardService {
 
     private final BusinessRepository businessRepository;
     private final CharityRepository charityRepository;
+    private final AnimalOrganizationRepository animalOrganizationRepository;
 
     public VerificationGuardService(BusinessRepository businessRepository,
-                                    CharityRepository charityRepository) {
+                                    CharityRepository charityRepository,
+                                    AnimalOrganizationRepository animalOrganizationRepository) {
         this.businessRepository = businessRepository;
         this.charityRepository = charityRepository;
+        this.animalOrganizationRepository = animalOrganizationRepository;
     }
 
     /**
@@ -76,6 +81,30 @@ public class VerificationGuardService {
         }
 
         return charity;
+    }
+
+    /**
+     * Enforces Rule 2 for animal organization accounts.
+     */
+    public AnimalOrganization assertAnimalOrgVerifiedForPublishing(User user) {
+        if (user.getRole() != Role.ANIMAL_ORG) {
+            throw new BadRequestException("User does not have an ANIMAL_ORG role");
+        }
+
+        Optional<AnimalOrganization> orgOpt = animalOrganizationRepository.findByUserId(user.getId());
+        if (orgOpt.isEmpty()) {
+            throw new BadRequestException("You must complete and submit your animal organization profile before registering feeding locations or requesting feed (Rule 2).");
+        }
+
+        AnimalOrganization org = orgOpt.get();
+        if (org.getVerificationStatus() != VerificationStatus.VERIFIED) {
+            throw new BadRequestException(
+                "Rule 2 violation: Animal organization account must be admin-VERIFIED before registering feeding locations or requesting surplus food. Current status: " +
+                org.getVerificationStatus()
+            );
+        }
+
+        return org;
     }
 }
 

@@ -4,6 +4,8 @@ import com.ecoconnect.foodbridge.model.FoodListing;
 import com.ecoconnect.foodbridge.model.enums.FoodListingStatus;
 import com.ecoconnect.foodbridge.model.enums.FoodSuitabilityType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.OffsetDateTime;
@@ -28,5 +30,11 @@ public interface FoodListingRepository extends JpaRepository<FoodListing, UUID> 
     List<FoodListing> findByStatusAndSuitabilityTypeAndPickupEndAfterOrderByPickupEndAsc(FoodListingStatus status, FoodSuitabilityType suitabilityType, OffsetDateTime dateTime);
 
     List<FoodListing> findByStatusAndPickupEndBefore(FoodListingStatus status, OffsetDateTime dateTime);
+
+    @Query("SELECT f FROM FoodListing f WHERE f.status = :status AND (f.suitabilityType = :suitabilityType OR f.animalSuitable = true) AND f.pickupEnd > :dateTime ORDER BY f.pickupEnd ASC")
+    List<FoodListing> findAvailableForAnimalOrganizations(
+            @Param("status") FoodListingStatus status,
+            @Param("suitabilityType") FoodSuitabilityType suitabilityType,
+            @Param("dateTime") OffsetDateTime dateTime);
 }
 

@@ -92,7 +92,7 @@ export default function Navbar() {
 
     // Route based on reference
     if (notif.type === 'FOOD_REQUEST_APPROVED') {
-      navigate('/dashboard/charity')
+      navigate(user?.role === 'ANIMAL_ORG' ? '/dashboard/animal-welfare' : '/dashboard/charity')
     } else if (notif.type === 'COUPON_RESERVED') {
       navigate('/dashboard/user')
     } else if (notif.type === 'PARTNERSHIP_UPDATE') {

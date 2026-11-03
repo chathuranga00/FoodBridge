@@ -4,6 +4,7 @@ import com.ecoconnect.foodbridge.model.FoodListing;
 import com.ecoconnect.foodbridge.model.FoodRequest;
 import com.ecoconnect.foodbridge.model.enums.FoodListingStatus;
 import com.ecoconnect.foodbridge.model.enums.FoodRequestStatus;
+import com.ecoconnect.foodbridge.model.enums.RequesterType;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -35,11 +36,19 @@ public class FoodRequestResponse {
     private String businessPhone;
 
     // Requester / Charity details
+    private RequesterType requesterType;
     private UUID charityId;
     private String charityName;
     private String charityRegistrationNumber;
     private String charityContactPerson;
     private String charityContactPhone;
+
+    // Animal Org details
+    private UUID animalOrgId;
+    private String animalOrgName;
+    private String animalOrgRegistrationNumber;
+    private String animalOrgContactPerson;
+    private String animalOrgContactPhone;
 
     // Request details
     private BigDecimal quantityRequested;
@@ -70,11 +79,17 @@ public class FoodRequestResponse {
                 .businessId(l != null && l.getBusiness() != null ? l.getBusiness().getId() : null)
                 .businessName(l != null && l.getBusiness() != null ? l.getBusiness().getBusinessName() : null)
                 .businessPhone(l != null && l.getBusiness() != null ? l.getBusiness().getContactPhone() : null)
+                .requesterType(r.getRequesterType())
                 .charityId(r.getCharity() != null ? r.getCharity().getId() : null)
                 .charityName(r.getCharity() != null ? r.getCharity().getCharityName() : null)
                 .charityRegistrationNumber(r.getCharity() != null ? r.getCharity().getRegistrationNumber() : null)
                 .charityContactPerson(r.getCharity() != null ? r.getCharity().getContactPerson() : null)
                 .charityContactPhone(r.getCharity() != null ? r.getCharity().getContactPhone() : null)
+                .animalOrgId(r.getAnimalOrg() != null ? r.getAnimalOrg().getId() : null)
+                .animalOrgName(r.getAnimalOrg() != null ? r.getAnimalOrg().getOrganizationName() : null)
+                .animalOrgRegistrationNumber(r.getAnimalOrg() != null ? r.getAnimalOrg().getRegistrationNumber() : null)
+                .animalOrgContactPerson(r.getAnimalOrg() != null ? r.getAnimalOrg().getContactPerson() : null)
+                .animalOrgContactPhone(r.getAnimalOrg() != null ? r.getAnimalOrg().getContactPhone() : null)
                 .quantityRequested(r.getQuantityRequested())
                 .status(r.getStatus())
                 .notes(r.getNotes())

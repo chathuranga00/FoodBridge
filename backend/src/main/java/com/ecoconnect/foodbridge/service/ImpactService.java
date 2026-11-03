@@ -128,6 +128,10 @@ public class ImpactService {
 
         long totalPeopleSupported = peopleFedFromRescue + beneficiariesFromCampaigns + (charityCapacity > 0 ? (charityCapacity / 2) : 0L);
 
+        long totalAnimalsFed = impactRecords.stream()
+                .mapToLong(ir -> ir.getAnimalsFed() != null ? ir.getAnimalsFed().longValue() : 0L)
+                .sum();
+
         // 8. Active Volunteers & Community Participation
         long verifiedVolunteers = volunteerRepository.countByVerificationStatus(VerificationStatus.VERIFIED);
         long attendedVolunteers = volunteerParticipationRepository.countDistinctVolunteersByStatus(ParticipationStatus.ATTENDED);
@@ -168,6 +172,7 @@ public class ImpactService {
                 .completedCampaigns(completedCampaigns)
                 .resourcesDistributed(resourcesDistributed)
                 .peopleSupported(totalPeopleSupported)
+                .animalsFed(totalAnimalsFed)
                 .activeVolunteers(activeVolunteers)
                 .totalVolunteerHours(totalVolunteerHours)
                 .completedVolunteerActivities(completedVolunteerActivities)

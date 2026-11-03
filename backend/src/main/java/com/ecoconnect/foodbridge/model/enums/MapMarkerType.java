@@ -5,6 +5,7 @@ public enum MapMarkerType {
     FOOD_LISTING,
     GROCERY_OFFER,
     CAMPAIGN,
-    CHARITY
+    CHARITY,
+    FEEDING_LOCATION
 }
 

@@ -14,6 +14,10 @@ public interface AnimalLocationRepository extends JpaRepository<AnimalLocation, 
 
     List<AnimalLocation> findByAnimalOrgId(UUID animalOrgId);
 
+    List<AnimalLocation> findByAnimalOrgIdOrderByCreatedAtDesc(UUID animalOrgId);
+
     List<AnimalLocation> findByIsActiveTrue();
+
+    List<AnimalLocation> findByIsActiveTrueOrderByCreatedAtDesc();
 }
 

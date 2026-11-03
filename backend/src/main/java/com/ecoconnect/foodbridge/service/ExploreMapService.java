@@ -25,6 +25,7 @@ public class ExploreMapService {
     private final GroceryOfferRepository groceryOfferRepository;
     private final CampaignRepository campaignRepository;
     private final CharityRepository charityRepository;
+    private final AnimalLocationRepository animalLocationRepository;
 
     @Transactional(readOnly = true)
     public List<MapMarkerResponse> getExploreMarkers(
@@ -222,6 +223,39 @@ public class ExploreMapService {
                         .isVerified(true)
                         .organizationName(ch.getCharityName())
                         .build());
+            }
+        }
+
+        // 6. Community Animal Feeding Locations
+        if (type == null || type == MapMarkerType.FEEDING_LOCATION) {
+            List<AnimalLocation> feedingLocations = animalLocationRepository.findByIsActiveTrue();
+            for (AnimalLocation al : feedingLocations) {
+                Double lat = toDouble(al.getLatitude());
+                Double lng = toDouble(al.getLongitude());
+                if (lat != null && lng != null) {
+                    String animalsInfo = (al.getEstimatedCount() != null ? "~" + al.getEstimatedCount() + " " : "") + al.getAnimalType();
+                    String routine = al.getFeedingRoutine() != null ? "Feeding Routine: " + al.getFeedingRoutine() : "Community Stray Feeding Point";
+
+                    markers.add(MapMarkerResponse.builder()
+                            .id(al.getId())
+                            .markerType(MapMarkerType.FEEDING_LOCATION)
+                            .title(al.getLocationName())
+                            .subtitle((al.getAnimalOrg() != null ? al.getAnimalOrg().getOrganizationName() : "Community Feeder") +
+                                    (al.getCity() != null ? " • " + al.getCity() : " • " + al.getDistrict()))
+                            .category(al.getAnimalType())
+                            .latitude(lat)
+                            .longitude(lng)
+                            .district(al.getDistrict())
+                            .city(al.getCity() != null ? al.getCity() : al.getDistrict())
+                            .status(Boolean.TRUE.equals(al.getIsActive()) ? "ACTIVE" : "INACTIVE")
+                            .isAvailable(Boolean.TRUE.equals(al.getIsActive()))
+                            .quantityInfo(animalsInfo + (al.getUrgencyLevel() != null ? " (Urgency: " + al.getUrgencyLevel() + ")" : ""))
+                            .timeWindow(routine)
+                            .targetUrl("/dashboard/animal-welfare")
+                            .isVerified(al.getAnimalOrg() != null && al.getAnimalOrg().getVerificationStatus() == VerificationStatus.VERIFIED)
+                            .organizationName(al.getAnimalOrg() != null ? al.getAnimalOrg().getOrganizationName() : "Animal Welfare Partner")
+                            .build());
+                }
             }
         }
 

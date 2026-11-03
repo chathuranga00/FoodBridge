@@ -99,6 +99,8 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/impact/summary", "/api/impact/stats", "/api/impact/organization/*", "/api/impact/export").permitAll()
                 // Public Volunteer Opportunities
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/volunteer/opportunities", "/api/volunteer/opportunities/*").permitAll()
+                // Public Animal Welfare Feeding Locations, Feed Requirements, and Available Feed
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/animal-welfare/locations", "/api/animal-welfare/requirements", "/api/animal-welfare/organizations", "/api/animal-welfare/available-feed").permitAll()
                 // Current authenticated user profile
                 .requestMatchers("/api/auth/me").authenticated()
                 // Local dev H2 console

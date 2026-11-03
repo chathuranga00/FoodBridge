@@ -57,6 +57,10 @@ public class FoodListing extends BaseEntity {
     @Column(name = "suitability_type", nullable = false, length = 30)
     private FoodSuitabilityType suitabilityType;
 
+    @Builder.Default
+    @Column(name = "animal_suitable", nullable = false)
+    private Boolean animalSuitable = false;
+
     @NotNull
     @Column(name = "quantity", nullable = false, precision = 10, scale = 2)
     private BigDecimal quantity;
