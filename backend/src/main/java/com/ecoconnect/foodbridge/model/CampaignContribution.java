@@ -58,6 +58,13 @@ public class CampaignContribution extends BaseEntity {
     @Column(name = "contribution_type", nullable = false, length = 30)
     private ContributionType contributionType;
 
+    @Column(name = "quantity")
+    private Integer quantity;
+
+    @Size(max = 50)
+    @Column(name = "unit")
+    private String unit;
+
     @Column(name = "monetary_amount", precision = 12, scale = 2)
     private BigDecimal monetaryAmount;
 
@@ -71,7 +78,7 @@ public class CampaignContribution extends BaseEntity {
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
-    private ContributionStatus status = ContributionStatus.PENDING_CONFIRMATION;
+    private ContributionStatus status = ContributionStatus.PLEDGED;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "confirmed_by")
@@ -79,6 +86,20 @@ public class CampaignContribution extends BaseEntity {
 
     @Column(name = "confirmed_at")
     private OffsetDateTime confirmedAt;
+
+    @Size(max = 500)
+    @Column(name = "distribution_evidence_url")
+    private String distributionEvidenceUrl;
+
+    @Column(name = "distribution_notes", columnDefinition = "TEXT")
+    private String distributionNotes;
+
+    @Column(name = "distributed_at")
+    private OffsetDateTime distributedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "distributed_by")
+    private User distributedBy;
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;

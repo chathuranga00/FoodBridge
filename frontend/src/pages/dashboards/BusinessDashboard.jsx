@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import {
@@ -26,6 +27,8 @@ import {
   Search,
   Receipt,
   RotateCcw,
+  Heart,
+  Camera,
 } from 'lucide-react'
 import Card from '../../components/common/Card'
 import Button from '../../components/common/Button'
@@ -35,10 +38,11 @@ import Input from '../../components/common/Input'
 import Select from '../../components/common/Select'
 import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
-import { profileApi, foodListingApi, foodRescueApi, groceryApi } from '../../api/client'
+import { profileApi, foodListingApi, foodRescueApi, groceryApi, contributionApi } from '../../api/client'
 import { SRI_LANKA_DISTRICTS, BUSINESS_TYPES, GROCERY_CATEGORIES } from '../../utils/constants'
 
 export default function BusinessDashboard() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { showToast } = useToast()
 
@@ -56,6 +60,12 @@ export default function BusinessDashboard() {
   const [businessRedemptions, setBusinessRedemptions] = useState([])
   const [isGroceryModalOpen, setIsGroceryModalOpen] = useState(false)
   const [submittingGroceryOffer, setSubmittingGroceryOffer] = useState(false)
+
+  // CSR Campaign Contributions State
+  const [myContributions, setMyContributions] = useState([])
+  const [loadingContributions, setLoadingContributions] = useState(false)
+  const [selectedContributionInstructions, setSelectedContributionInstructions] = useState(null)
+  const [selectedContributionEvidence, setSelectedContributionEvidence] = useState(null)
 
   // Redemption Verification & Confirmation State
   const [redemptionCodeInput, setRedemptionCodeInput] = useState('')
@@ -177,6 +187,7 @@ export default function BusinessDashboard() {
           await Promise.all([
             loadListingsAndRequests(),
             loadGroceryData(),
+            loadContributions(),
           ])
         }
       }
@@ -184,6 +195,18 @@ export default function BusinessDashboard() {
       console.error('Failed to load profile', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadContributions = async () => {
+    try {
+      setLoadingContributions(true)
+      const res = await contributionApi.getMyContributions()
+      setMyContributions(res.data || [])
+    } catch (err) {
+      console.error('Error fetching contributions', err)
+    } finally {
+      setLoadingContributions(false)
     }
   }
 
@@ -779,6 +802,121 @@ export default function BusinessDashboard() {
     },
   ]
 
+  const csrContributionColumns = [
+    {
+      key: 'campaignTitle',
+      label: 'Campaign & District',
+      render: (val, row) => (
+        <div>
+          <button
+            onClick={() => navigate(`/campaigns/${row.campaignId}`)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-primary)',
+              fontWeight: 700,
+              fontSize: '0.925rem',
+              textAlign: 'left',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            {val}
+          </button>
+          <div className="text-xs text-muted" style={{ display: 'flex', gap: '0.3rem', marginTop: '2px' }}>
+            <span>{row.charityName}</span>
+            <span>•</span>
+            <MapPin size={11} style={{ color: '#dc2626' }} />
+            <span>{row.campaignDistrict} District</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'contributionType',
+      label: 'Contribution Type & Items',
+      render: (type, row) => (
+        <div>
+          <span
+            className={`badge ${
+              type === 'MONETARY_PLEDGE'
+                ? 'badge-sky'
+                : type === 'FOOD_ITEMS'
+                ? 'badge-amber'
+                : 'badge-emerald'
+            }`}
+            style={{ fontSize: '0.7rem', marginBottom: '3px' }}
+          >
+            {type === 'MONETARY_PLEDGE' ? 'Money Pledge' : type === 'FOOD_ITEMS' ? 'Food Supplies' : 'Other Resources'}
+          </span>
+          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+            {row.quantity} {row.unit || 'units'}
+            {row.monetaryAmount ? ` (Rs. ${Number(row.monetaryAmount).toLocaleString()})` : ''}
+          </div>
+          {row.itemDescription && (
+            <div className="text-xs text-muted" style={{ maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {row.itemDescription}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status (Rule 5)',
+      render: (status) => {
+        let badgeClass = 'badge-amber'
+        let text = 'Pledged (Pending Charity Receipt)'
+        if (status === 'CONFIRMED') {
+          badgeClass = 'badge-sky'
+          text = 'Receipt Confirmed'
+        } else if (status === 'DISTRIBUTED') {
+          badgeClass = 'badge-emerald'
+          text = 'Distributed with Evidence!'
+        } else if (status === 'REJECTED' || status === 'CANCELLED') {
+          badgeClass = 'badge-rose'
+          text = status
+        }
+        return <span className={`badge ${badgeClass}`}>{text}</span>
+      },
+    },
+    {
+      key: 'createdAt',
+      label: 'Date',
+      render: (val) => (
+        <span className="text-xs text-muted">
+          {val ? new Date(val).toLocaleDateString() : 'Recent'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions & Evidence',
+      render: (_, row) => (
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <Button
+            size="sm"
+            variant="outline"
+            icon={<FileText size={12} />}
+            onClick={() => setSelectedContributionInstructions(row)}
+          >
+            Instructions
+          </Button>
+          {row.status === 'DISTRIBUTED' && row.distributionEvidenceUrl && (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<Camera size={12} />}
+              onClick={() => setSelectedContributionEvidence(row)}
+            >
+              Proof
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ]
+
   if (loading) {
     return (
       <div style={{ padding: '4rem 0' }}>
@@ -1081,6 +1219,26 @@ export default function BusinessDashboard() {
             </span>
           )}
         </button>
+
+        <button
+          onClick={() => setActiveTab('csr-contributions')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'csr-contributions' ? '3px solid var(--color-primary)' : '3px solid transparent',
+            color: activeTab === 'csr-contributions' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <Heart size={18} />
+          CSR Campaign Pledges ({myContributions.length})
+        </button>
       </div>
 
       {/* Tab: Grocery Offers */}
@@ -1251,6 +1409,201 @@ export default function BusinessDashboard() {
           />
         </Card>
       )}
+
+      {/* Tab: CSR Campaign Contributions */}
+      {activeTab === 'csr-contributions' && (
+        <Card
+          title="Corporate CSR Contributions & Campaign Pledges (Rule 5 & Rule 8)"
+          subtitle="Direct corporate donations without payment processing fees. Review charity confirmation and distribution evidence for ESG & CSR auditing."
+          action={
+            <Button size="sm" variant="primary" icon={<Heart size={14} />} onClick={() => navigate('/campaigns')}>
+              Browse Campaigns to Pledge
+            </Button>
+          }
+        >
+          {loadingContributions ? (
+            <div style={{ padding: '2rem 0' }}>
+              <Loader message="Loading corporate pledges..." />
+            </div>
+          ) : myContributions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+              <Heart size={40} style={{ color: '#94a3b8', margin: '0 auto 0.75rem' }} />
+              <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.35rem' }}>
+                No Corporate Contributions Yet
+              </div>
+              <p className="text-xs text-muted" style={{ maxWidth: '420px', margin: '0 auto 1.25rem auto' }}>
+                Pledge bulk dry rations, equipment, or funds directly to verified rural campaigns. Zero platform deductions.
+              </p>
+              <Button size="sm" variant="outline" icon={<ExternalLink size={14} />} onClick={() => navigate('/campaigns')}>
+                Explore Rural Campaigns
+              </Button>
+            </div>
+          ) : (
+            <Table
+              columns={csrContributionColumns}
+              data={myContributions}
+              emptyMessage="No contributions recorded."
+            />
+          )}
+        </Card>
+      )}
+
+      {/* Modal: Agreed Payment & Handover Instructions */}
+      <Modal
+        isOpen={!!selectedContributionInstructions}
+        onClose={() => setSelectedContributionInstructions(null)}
+        title={`Charity Instructions: ${selectedContributionInstructions?.campaignTitle}`}
+        subtitle={`Organizing Charity: ${selectedContributionInstructions?.charityName}`}
+        maxWidth="600px"
+      >
+        {selectedContributionInstructions && (
+          <div>
+            <div
+              style={{
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                gap: '0.75rem',
+                alignItems: 'center',
+              }}
+            >
+              <ShieldCheck size={22} style={{ color: '#16a34a', flexShrink: 0 }} />
+              <div style={{ fontSize: '0.85rem', color: '#14532d', lineHeight: 1.5 }}>
+                <strong>Direct CSR Transfer:</strong> FoodBridge does not deduct processing cuts. Please follow the receiving charity's verified instructions below to fulfill your pledge directly.
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>
+                Bank Deposit & Transfer Instructions
+              </h4>
+              <div
+                style={{
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6,
+                  color: '#334155',
+                }}
+              >
+                {selectedContributionInstructions.paymentInstructions || 'Direct bank transfer details provided upon contacting the charity.'}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>
+                Physical Delivery / Handover Coordination
+              </h4>
+              <div
+                style={{
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6,
+                  color: '#334155',
+                }}
+              >
+                {selectedContributionInstructions.handoverInstructions || 'Please coordinate delivery logistics directly with the charity.'}
+              </div>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.875rem 1rem',
+                fontSize: '0.825rem',
+                color: '#1e40af',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div><strong>Charity Contact:</strong> {selectedContributionInstructions.charityContactPerson || selectedContributionInstructions.charityName}</div>
+              <div><strong>Phone:</strong> {selectedContributionInstructions.charityContactPhone || 'Available on request'}</div>
+              <div><strong>Email:</strong> {selectedContributionInstructions.charityContactEmail || 'N/A'}</div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="primary" onClick={() => setSelectedContributionInstructions(null)}>
+                Understood & Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal: Distribution Proof & Evidence */}
+      <Modal
+        isOpen={!!selectedContributionEvidence}
+        onClose={() => setSelectedContributionEvidence(null)}
+        title="Field Distribution Evidence & CSR Audit Proof"
+        subtitle={`Delivered by ${selectedContributionEvidence?.charityName} for ${selectedContributionEvidence?.campaignTitle}`}
+        maxWidth="600px"
+      >
+        {selectedContributionEvidence && (
+          <div>
+            {selectedContributionEvidence.distributionEvidenceUrl && (
+              <div
+                style={{
+                  height: '240px',
+                  backgroundColor: '#f1f5f9',
+                  borderRadius: 'var(--radius-md)',
+                  overflow: 'hidden',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                <img
+                  src={selectedContributionEvidence.distributionEvidenceUrl}
+                  alt="Field Distribution Proof"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => { e.target.style.display = 'none' }}
+                />
+              </div>
+            )}
+
+            <div
+              style={{
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#166534', marginBottom: '0.25rem' }}>
+                Handover Confirmed & Distributed
+              </div>
+              <p style={{ fontSize: '0.85rem', color: '#14532d', margin: 0, lineHeight: 1.5 }}>
+                {selectedContributionEvidence.distributionNotes || 'Handed over directly to vulnerable beneficiaries in the field.'}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: '#64748b' }}>
+              <span>
+                Delivered: {selectedContributionEvidence.distributedAt ? new Date(selectedContributionEvidence.distributedAt).toLocaleDateString() : 'Recently'}
+              </span>
+              {selectedContributionEvidence.distributionEvidenceUrl && (
+                <a
+                  href={selectedContributionEvidence.distributionEvidenceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                >
+                  <ExternalLink size={13} /> View Full File
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Modal: Publish Grocery Offer */}
       <Modal

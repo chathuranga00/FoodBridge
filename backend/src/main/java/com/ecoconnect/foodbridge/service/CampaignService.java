@@ -71,6 +71,16 @@ public class CampaignService {
             throw new BadRequestException("Supporting evidence upload is required for rural community campaign moderation");
         }
 
+        String paymentInst = request.getPaymentInstructions();
+        if (paymentInst == null || paymentInst.isBlank()) {
+            paymentInst = "Direct Bank Transfer to: " + charity.getCharityName() + " (Reg No: " + charity.getRegistrationNumber() + "). Please contact " + (charity.getContactPhone() != null ? charity.getContactPhone() : charity.getContactEmail()) + " for official donation receipt.";
+        }
+
+        String handoverInst = request.getHandoverInstructions();
+        if (handoverInst == null || handoverInst.isBlank()) {
+            handoverInst = "Physical Handover at: " + charity.getCharityName() + ", " + charity.getAddressLine1() + ", " + charity.getCity() + ", " + charity.getDistrict() + " District. Contact: " + charity.getContactPerson() + " (" + charity.getContactPhone() + ").";
+        }
+
         Campaign campaign = Campaign.builder()
                 .organizerType(CampaignOrganizerType.CHARITY)
                 .charity(charity)
@@ -84,6 +94,8 @@ public class CampaignService {
                 .coverImageUrl(request.getCoverImageUrl())
                 .evidenceUrl(request.getEvidenceUrl())
                 .targetBeneficiariesCount(request.getTargetBeneficiariesCount())
+                .paymentInstructions(paymentInst)
+                .handoverInstructions(handoverInst)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .status(CampaignStatus.PENDING_APPROVAL) // Rule 3: Must be reviewed by admin
@@ -306,25 +318,27 @@ public class CampaignService {
 
         int qty = request.getPledgeQuantity() != null ? request.getPledgeQuantity() : 1;
 
-        // Save contribution record
+        // Save contribution record in PLEDGED status
         CampaignContribution contribution = CampaignContribution.builder()
                 .campaign(campaign)
                 .contributorUser(user)
                 .contributorName(user.getFullName() != null ? user.getFullName() : user.getEmail())
                 .contributorEmail(user.getEmail())
                 .contributorPhone(user.getPhoneNumber())
-                .contributionType(ContributionType.FOOD_ITEMS)
+                .contributionType(ContributionType.OTHER_RESOURCES)
+                .quantity(qty)
+                .unit(campaign.getTargetUnit())
                 .itemDescription(request.getItemDescription() != null ? request.getItemDescription() : (qty + " " + campaign.getTargetUnit()))
-                .status(ContributionStatus.CONFIRMED)
+                .status(ContributionStatus.PLEDGED)
                 .notes(request.getNotes())
                 .build();
         contributionRepository.save(contribution);
 
-        // Increment campaign current quantity
-        campaignRepository.incrementCurrentQuantity(campaignId, qty);
+        // Crucial Rule: Campaign progress is updated ONLY from CONFIRMED contributions!
+        // Quantity is not incremented upon pledge.
 
         Campaign updated = campaignRepository.findById(campaignId).orElse(campaign);
-        log.info("User {} pledged {} units to campaign {}", userEmail, qty, campaignId);
+        log.info("User {} pledged {} units to campaign {}. Status: PLEDGED. Awaiting charity receipt confirmation.", userEmail, qty, campaignId);
 
         return CampaignResponse.fromEntity(updated);
     }

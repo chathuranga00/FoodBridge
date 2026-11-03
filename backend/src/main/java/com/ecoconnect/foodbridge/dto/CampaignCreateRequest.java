@@ -57,5 +57,9 @@ public class CampaignCreateRequest {
     private String evidenceUrl;
 
     private Integer targetBeneficiariesCount;
+
+    private String paymentInstructions;
+
+    private String handoverInstructions;
 }
 

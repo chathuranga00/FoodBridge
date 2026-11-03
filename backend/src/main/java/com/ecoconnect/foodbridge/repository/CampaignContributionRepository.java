@@ -16,9 +16,17 @@ public interface CampaignContributionRepository extends JpaRepository<CampaignCo
 
     List<CampaignContribution> findByCampaignId(UUID campaignId);
 
+    List<CampaignContribution> findByCampaignIdOrderByCreatedAtDesc(UUID campaignId);
+
     List<CampaignContribution> findByCampaignIdAndStatus(UUID campaignId, ContributionStatus status);
 
-    List<CampaignContribution> findByContributorUserId(UUID userId);
+    List<CampaignContribution> findByContributorUserIdOrderByCreatedAtDesc(UUID userId);
+
+    @Query("SELECT c FROM CampaignContribution c WHERE (c.campaign.charity IS NOT NULL AND c.campaign.charity.user.id = :userId) ORDER BY c.createdAt DESC")
+    List<CampaignContribution> findByCharityUserIdOrderByCreatedAtDesc(@Param("userId") UUID userId);
+
+    @Query("SELECT c FROM CampaignContribution c WHERE (c.campaign.charity IS NOT NULL AND c.campaign.charity.user.id = :userId) AND c.status = :status ORDER BY c.createdAt DESC")
+    List<CampaignContribution> findByCharityUserIdAndStatusOrderByCreatedAtDesc(@Param("userId") UUID userId, @Param("status") ContributionStatus status);
 
     @Query("SELECT COALESCE(SUM(c.monetaryAmount), 0) FROM CampaignContribution c WHERE c.campaign.id = :campaignId AND c.status = 'CONFIRMED'")
     BigDecimal sumConfirmedMonetaryByCampaignId(@Param("campaignId") UUID campaignId);
@@ -26,4 +34,3 @@ public interface CampaignContributionRepository extends JpaRepository<CampaignCo
     @Query("SELECT COALESCE(SUM(c.foodAmountKg), 0) FROM CampaignContribution c WHERE c.campaign.id = :campaignId AND c.status = 'CONFIRMED'")
     BigDecimal sumConfirmedFoodKgByCampaignId(@Param("campaignId") UUID campaignId);
 }
-

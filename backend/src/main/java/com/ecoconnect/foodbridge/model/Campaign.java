@@ -119,4 +119,10 @@ public class Campaign extends BaseEntity {
 
     @Column(name = "longitude", precision = 10, scale = 7)
     private BigDecimal longitude;
+
+    @Column(name = "payment_instructions", columnDefinition = "TEXT")
+    private String paymentInstructions;
+
+    @Column(name = "handover_instructions", columnDefinition = "TEXT")
+    private String handoverInstructions;
 }

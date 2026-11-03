@@ -37,7 +37,7 @@ import Input from '../../components/common/Input'
 import Select from '../../components/common/Select'
 import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
-import { profileApi, foodListingApi, foodRescueApi, campaignApi } from '../../api/client'
+import { profileApi, foodListingApi, foodRescueApi, campaignApi, contributionApi } from '../../api/client'
 import { SRI_LANKA_DISTRICTS, CAMPAIGN_NEED_TYPES } from '../../utils/constants'
 
 export default function CharityDashboard() {
@@ -83,6 +83,8 @@ export default function CharityDashboard() {
     endDate: '',
     coverImageUrl: '',
     evidenceUrl: '',
+    paymentInstructions: '',
+    handoverInstructions: '',
   })
 
   // Distribution Update Form State
@@ -93,6 +95,22 @@ export default function CharityDashboard() {
     quantityDistributed: '',
     distributionDate: new Date().toISOString().split('T')[0],
   })
+
+  // Contributions Tracking & Distribution State
+  const [incomingContributions, setIncomingContributions] = useState([])
+  const [loadingContributions, setLoadingContributions] = useState(false)
+  const [contributionStatusFilter, setContributionStatusFilter] = useState('ALL')
+  const [selectedContributionForConfirm, setSelectedContributionForConfirm] = useState(null)
+  const [confirmNotes, setConfirmNotes] = useState('')
+  const [submittingConfirm, setSubmittingConfirm] = useState(false)
+  const [selectedContributionForDistribute, setSelectedContributionForDistribute] = useState(null)
+  const [distributeForm, setDistributeForm] = useState({
+    evidenceUrl: '',
+    notes: '',
+    distributionDate: new Date().toISOString().split('T')[0],
+  })
+  const [submittingDistribute, setSubmittingDistribute] = useState(false)
+  const [viewEvidenceContribution, setViewEvidenceContribution] = useState(null)
 
   // Request Form State
   const [requestForm, setRequestForm] = useState({
@@ -170,18 +188,32 @@ export default function CharityDashboard() {
     }
   }
 
+  const loadContributions = async () => {
+    try {
+      setLoadingContributions(true)
+      const res = await contributionApi.getCharityContributions()
+      setIncomingContributions(res.data || [])
+    } catch (err) {
+      console.error('Error fetching charity contributions', err)
+    } finally {
+      setLoadingContributions(false)
+    }
+  }
+
   const loadFeedAndRequests = async () => {
     try {
-      const [availableRes, requestsRes, campaignsRes] = await Promise.all([
+      const [availableRes, requestsRes, campaignsRes, contributionsRes] = await Promise.all([
         foodListingApi.getAvailable(),
         foodRescueApi.getCharityRequests(),
         campaignApi.getMyCampaigns(),
+        contributionApi.getCharityContributions(),
       ])
       setAvailableListings(availableRes.data || [])
       setMyRequests(requestsRes.data || [])
       setCampaigns(campaignsRes.data || [])
+      setIncomingContributions(contributionsRes.data || [])
     } catch (err) {
-      console.error('Error fetching available listings, requests, or campaigns', err)
+      console.error('Error fetching available listings, requests, campaigns, or contributions', err)
     }
   }
 
@@ -287,6 +319,8 @@ export default function CharityDashboard() {
         endDate: '',
         coverImageUrl: '',
         evidenceUrl: '',
+        paymentInstructions: '',
+        handoverInstructions: '',
       })
       await loadCampaigns()
       setActiveTab('campaigns')
@@ -326,6 +360,65 @@ export default function CharityDashboard() {
       showToast(err.response?.data?.message || 'Failed to post distribution proof', 'error')
     } finally {
       setSubmittingDistribution(false)
+    }
+  }
+
+  // Confirm Contribution Receipt Handlers
+  const handleOpenConfirmModal = (contrib) => {
+    setSelectedContributionForConfirm(contrib)
+    setConfirmNotes('')
+  }
+
+  const handleConfirmSubmit = async (e) => {
+    e.preventDefault()
+    if (!selectedContributionForConfirm) return
+    setSubmittingConfirm(true)
+    try {
+      await contributionApi.confirmContribution(selectedContributionForConfirm.id, {
+        notes: confirmNotes.trim(),
+      })
+      showToast('Contribution confirmed as received! Campaign progress updated.', 'success')
+      setSelectedContributionForConfirm(null)
+      await loadContributions()
+      await loadCampaigns()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to confirm contribution receipt', 'error')
+    } finally {
+      setSubmittingConfirm(false)
+    }
+  }
+
+  // Record Contribution Distribution Handlers
+  const handleOpenDistributeModal = (contrib) => {
+    setSelectedContributionForDistribute(contrib)
+    setDistributeForm({
+      evidenceUrl: '',
+      notes: '',
+      distributionDate: new Date().toISOString().split('T')[0],
+    })
+  }
+
+  const handleDistributeSubmit = async (e) => {
+    e.preventDefault()
+    if (!selectedContributionForDistribute) return
+    if (!distributeForm.evidenceUrl?.trim()) {
+      showToast('Please provide a photo or document URL showing distribution proof.', 'error')
+      return
+    }
+    setSubmittingDistribute(true)
+    try {
+      await contributionApi.recordDistribution(selectedContributionForDistribute.id, {
+        evidenceUrl: distributeForm.evidenceUrl.trim(),
+        notes: distributeForm.notes.trim(),
+        distributionDate: distributeForm.distributionDate,
+      })
+      showToast('Field distribution proof recorded! Contribution marked as DISTRIBUTED.', 'success')
+      setSelectedContributionForDistribute(null)
+      await loadContributions()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to record distribution proof', 'error')
+    } finally {
+      setSubmittingDistribute(false)
     }
   }
 
@@ -422,6 +515,137 @@ export default function CharityDashboard() {
       key: 'notes',
       label: 'Instructions / Notes',
       render: (val) => <span className="text-xs text-muted">{val || 'None'}</span>,
+    },
+  ]
+
+  // Columns for Incoming Contributions Table
+  const contributionColumns = [
+    {
+      key: 'contributor',
+      label: 'Contributor',
+      render: (_, row) => (
+        <div>
+          <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {row.contributorName || 'Community Donor'}
+            {row.contributorType === 'RESTAURANT' || row.contributorType === 'GROCERY' ? (
+              <span className="badge badge-sky" style={{ fontSize: '0.7rem' }}>Corporate CSR</span>
+            ) : (
+              <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>Individual</span>
+            )}
+          </div>
+          <div className="text-xs text-muted">
+            {row.contributorEmail} {row.contributorPhone ? `• ${row.contributorPhone}` : ''}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'campaignTitle',
+      label: 'Campaign',
+      render: (_, row) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{row.campaignTitle}</div>
+          <div className="text-xs text-muted">
+            <MapPin size={12} style={{ display: 'inline', color: '#dc2626', verticalAlign: '-1px' }} /> {row.campaignDistrict} District
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'contributionType',
+      label: 'Type & Amount / Quantity',
+      render: (_, row) => (
+        <div>
+          {row.contributionType === 'MONETARY_PLEDGE' ? (
+            <div>
+              <span style={{ fontWeight: 800, color: '#047857' }}>
+                LKR {row.monetaryAmount ? Number(row.monetaryAmount).toLocaleString() : '0'}
+              </span>
+              <div className="text-xs text-muted">Direct Bank Transfer</div>
+            </div>
+          ) : row.contributionType === 'FOOD_ITEMS' ? (
+            <div>
+              <span style={{ fontWeight: 700, color: '#0284c7' }}>
+                {row.quantity ? `${row.quantity} ${row.unit || 'Units'}` : ''} {row.foodAmountKg ? `(${row.foodAmountKg} kg)` : ''}
+              </span>
+              <div className="text-xs text-muted">{row.itemDescription || 'Food Supplies'}</div>
+            </div>
+          ) : (
+            <div>
+              <span style={{ fontWeight: 700, color: '#7c3aed' }}>
+                {row.quantity} {row.unit || 'Units'}
+              </span>
+              <div className="text-xs text-muted">{row.itemDescription || row.contributionType}</div>
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (val) => {
+        let badgeClass = 'badge-amber'
+        let label = 'Pledged (Awaiting Receipt)'
+        if (val === 'CONFIRMED') {
+          badgeClass = 'badge-sky'
+          label = 'Confirmed (In Custody)'
+        } else if (val === 'DISTRIBUTED') {
+          badgeClass = 'badge-emerald'
+          label = 'Distributed (Verified Proof)'
+        } else if (val === 'REJECTED' || val === 'CANCELLED') {
+          badgeClass = 'badge-rose'
+          label = val
+        }
+        return <span className={`badge ${badgeClass}`}>{label}</span>
+      },
+    },
+    {
+      key: 'createdAt',
+      label: 'Pledged Date',
+      render: (val) => (
+        <span className="text-xs text-muted">
+          {val ? new Date(val).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_, row) => (
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          {row.status === 'PLEDGED' && (
+            <Button
+              size="sm"
+              variant="primary"
+              icon={<CheckCircle2 size={13} />}
+              onClick={() => handleOpenConfirmModal(row)}
+            >
+              Confirm Receipt
+            </Button>
+          )}
+          {row.status === 'CONFIRMED' && (
+            <Button
+              size="sm"
+              variant="primary"
+              icon={<Camera size={13} />}
+              onClick={() => handleOpenDistributeModal(row)}
+            >
+              Record Distribution
+            </Button>
+          )}
+          {row.status === 'DISTRIBUTED' && (
+            <Button
+              size="sm"
+              variant="outline"
+              icon={<Eye size={13} />}
+              onClick={() => setViewEvidenceContribution(row)}
+            >
+              View Proof
+            </Button>
+          )}
+        </div>
+      ),
     },
   ]
 
@@ -674,6 +898,40 @@ export default function CharityDashboard() {
         >
           <Heart size={18} />
           Rural Relief Campaigns ({campaigns.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('contributions')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'contributions' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
+            color: activeTab === 'contributions' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <Gift size={18} />
+          Contributions & Distribution ({incomingContributions.length})
+          {incomingContributions.filter((c) => c.status === 'PLEDGED').length > 0 && (
+            <span
+              style={{
+                backgroundColor: '#f59e0b',
+                color: '#fff',
+                fontSize: '0.75rem',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '999px',
+                fontWeight: 700,
+              }}
+            >
+              {incomingContributions.filter((c) => c.status === 'PLEDGED').length} Pledged
+            </span>
+          )}
         </button>
       </div>
 
@@ -984,6 +1242,141 @@ export default function CharityDashboard() {
         </div>
       )}
 
+      {/* Tab 4: Contributions & Field Distribution Records */}
+      {activeTab === 'contributions' && (
+        <div>
+          {/* Direct Handover & No-Payment Guarantee Banner */}
+          <div
+            style={{
+              backgroundColor: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              borderRadius: 'var(--radius-md)',
+              padding: '1.25rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              gap: '0.85rem',
+              alignItems: 'center',
+            }}
+          >
+            <ShieldCheck size={24} style={{ color: '#059669', flexShrink: 0 }} />
+            <div style={{ fontSize: '0.875rem', color: '#065f46', lineHeight: 1.5 }}>
+              <strong>Zero-Fee Direct Contribution Architecture (Rule 8):</strong> FoodBridge does not process payments or deduct transaction fees. Monetary contributions are deposited directly into your verified charity bank account, and physical goods are received at your depot. Pledges start in <strong>PLEDGED</strong> status and do not increment the campaign progress bar until you click <strong>Confirm Receipt</strong>. Once supplies are distributed in the field, upload photo evidence to complete transparency.
+            </div>
+          </div>
+
+          {/* Metric Cards */}
+          <div className="grid grid-cols-4 gap-6" style={{ marginBottom: '2rem' }}>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <span className="text-sm text-muted">Total Contributions</span>
+                <Gift size={20} style={{ color: 'var(--color-primary)' }} />
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{incomingContributions.length} Total</div>
+            </Card>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <span className="text-sm text-muted">Awaiting Receipt</span>
+                <Clock size={20} style={{ color: '#f59e0b' }} />
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#b45309' }}>
+                {incomingContributions.filter((c) => c.status === 'PLEDGED').length} Pledged
+              </div>
+            </Card>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <span className="text-sm text-muted">In Custody / Ready</span>
+                <CheckCircle2 size={20} style={{ color: '#0284c7' }} />
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0369a1' }}>
+                {incomingContributions.filter((c) => c.status === 'CONFIRMED').length} Confirmed
+              </div>
+            </Card>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <span className="text-sm text-muted">Distributed to Field</span>
+                <Camera size={20} style={{ color: '#10b981' }} />
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#047857' }}>
+                {incomingContributions.filter((c) => c.status === 'DISTRIBUTED').length} Delivered
+              </div>
+            </Card>
+          </div>
+
+          {/* Filter Bar */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+            }}
+          >
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {['ALL', 'PLEDGED', 'CONFIRMED', 'DISTRIBUTED'].map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setContributionStatusFilter(st)}
+                  style={{
+                    padding: '0.4rem 0.85rem',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    border: '1px solid',
+                    cursor: 'pointer',
+                    borderColor: contributionStatusFilter === st ? 'var(--color-primary)' : 'var(--color-border)',
+                    backgroundColor: contributionStatusFilter === st ? 'var(--color-primary-50)' : '#ffffff',
+                    color: contributionStatusFilter === st ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
+                  }}
+                >
+                  {st === 'ALL'
+                    ? 'All Contributions'
+                    : st === 'PLEDGED'
+                    ? 'Pledged (Pending Receipt)'
+                    : st === 'CONFIRMED'
+                    ? 'Confirmed (Ready to Distribute)'
+                    : 'Distributed with Evidence'}
+                </button>
+              ))}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<Clock size={14} />}
+              onClick={loadContributions}
+              loading={loadingContributions}
+            >
+              Refresh Records
+            </Button>
+          </div>
+
+          {/* Contributions Table */}
+          <Card>
+            {incomingContributions.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3.5rem 1rem' }}>
+                <Gift size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem' }} />
+                <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                  No Incoming Contributions Yet
+                </div>
+                <p className="text-sm text-muted" style={{ maxWidth: '440px', margin: '0 auto' }}>
+                  When community members or CSR partners pledge aid to your verified campaigns, their records and handover instructions will appear here.
+                </p>
+              </div>
+            ) : (
+              <Table
+                columns={contributionColumns}
+                data={incomingContributions.filter((c) => {
+                  if (contributionStatusFilter === 'ALL') return true
+                  return c.status === contributionStatusFilter
+                })}
+              />
+            )}
+          </Card>
+        </div>
+      )}
+
       {/* Modal: Send Food Rescue Request */}
       <Modal
         isOpen={isRequestModalOpen}
@@ -1262,6 +1655,24 @@ export default function CharityDashboard() {
             placeholder="Describe the community context, current challenge, number of households/students affected, and logistics plan..."
           />
 
+          <Textarea
+            label="Direct Bank Transfer & Payment Instructions"
+            rows={2}
+            value={campaignForm.paymentInstructions}
+            onChange={(e) => setCampaignForm({ ...campaignForm, paymentInstructions: e.target.value })}
+            placeholder="e.g. Bank of Ceylon, Account: 12345678, Beneficiary: Sarvodaya Relief, Branch: Colombo Central. Ref: Filter Project"
+            helper="FoodBridge has 0% platform fee. Monetary pledges are transferred directly to this NGO bank account."
+          />
+
+          <Textarea
+            label="Physical Drop-off & Handover Instructions"
+            rows={2}
+            value={campaignForm.handoverInstructions}
+            onChange={(e) => setCampaignForm({ ...campaignForm, handoverInstructions: e.target.value })}
+            placeholder="e.g. Drop-off at Colombo Community Center, Mon-Fri 9AM-5PM, or coordinate courier with Coordinator Sunimal (077-1234567)."
+            helper="Drop-off address, operating hours, and logistics contact for physical relief supplies."
+          />
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
             <Button type="button" variant="outline" onClick={() => setIsCreateCampaignModalOpen(false)}>
               Cancel
@@ -1335,6 +1746,231 @@ export default function CharityDashboard() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal: Confirm Contribution Receipt */}
+      <Modal
+        isOpen={!!selectedContributionForConfirm}
+        onClose={() => setSelectedContributionForConfirm(null)}
+        title="Confirm Receipt of Contribution"
+        subtitle={`Verify receipt of funds or physical supplies from ${selectedContributionForConfirm?.contributorName || 'Contributor'}`}
+        maxWidth="550px"
+      >
+        {selectedContributionForConfirm && (
+          <form onSubmit={handleConfirmSubmit}>
+            <div
+              style={{
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: '0.25rem' }}>
+                {selectedContributionForConfirm.campaignTitle}
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#1e3a8a' }}>
+                Contributor: <strong>{selectedContributionForConfirm.contributorName}</strong> ({selectedContributionForConfirm.contributorEmail})
+              </div>
+              <div style={{ marginTop: '0.5rem', fontSize: '0.95rem', fontWeight: 800, color: '#0369a1' }}>
+                {selectedContributionForConfirm.contributionType === 'MONETARY_PLEDGE'
+                  ? `LKR ${selectedContributionForConfirm.monetaryAmount ? Number(selectedContributionForConfirm.monetaryAmount).toLocaleString() : '0'} Direct Transfer`
+                  : `${selectedContributionForConfirm.quantity} ${selectedContributionForConfirm.unit || 'Units'} ${selectedContributionForConfirm.itemDescription ? `— ${selectedContributionForConfirm.itemDescription}` : ''}`}
+              </div>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#ecfdf5',
+                border: '1px solid #a7f3d0',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.75rem',
+                fontSize: '0.825rem',
+                color: '#065f46',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <strong>Campaign Progress Impact:</strong> Confirming receipt will atomically increment the campaign's progress bar. Pledges never count towards campaign progress until confirmed by the receiving charity (Rule 8).
+            </div>
+
+            <Textarea
+              label="Verification Notes & Receipt / Bank Reference"
+              rows={3}
+              value={confirmNotes}
+              onChange={(e) => setConfirmNotes(e.target.value)}
+              placeholder="e.g. Verified deposit in Commercial Bank A/C #12345, Ref #BOC-99881. Receipt #442 issued."
+              helper="Record bank transaction reference or physical goods delivery voucher number."
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <Button type="button" variant="outline" onClick={() => setSelectedContributionForConfirm(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" icon={<CheckCircle2 size={15} />} loading={submittingConfirm}>
+                Confirm Receipt & Update Progress
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Modal: Record Distribution Evidence */}
+      <Modal
+        isOpen={!!selectedContributionForDistribute}
+        onClose={() => setSelectedContributionForDistribute(null)}
+        title="Record Field Distribution Evidence"
+        subtitle={`Upload handover proof for contribution #${selectedContributionForDistribute?.id?.substring(0, 8)}`}
+        maxWidth="600px"
+      >
+        {selectedContributionForDistribute && (
+          <form onSubmit={handleDistributeSubmit}>
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div style={{ fontWeight: 700, color: 'var(--color-text)' }}>
+                {selectedContributionForDistribute.campaignTitle}
+              </div>
+              <div className="text-xs text-muted" style={{ marginTop: '0.25rem' }}>
+                Beneficiary District: {selectedContributionForDistribute.campaignDistrict} &bull; Contributed by: {selectedContributionForDistribute.contributorName}
+              </div>
+            </div>
+
+            <Input
+              label="Field Distribution Photo or Document URL"
+              required
+              value={distributeForm.evidenceUrl}
+              onChange={(e) => setDistributeForm({ ...distributeForm, evidenceUrl: e.target.value })}
+              placeholder="https://images.unsplash.com/... or cloud storage URL"
+              helper="Photographic proof of supplies handed over or field activity record."
+            />
+
+            <Input
+              label="Distribution Date"
+              type="date"
+              required
+              value={distributeForm.distributionDate}
+              onChange={(e) => setDistributeForm({ ...distributeForm, distributionDate: e.target.value })}
+            />
+
+            <Textarea
+              label="Field Distribution Notes & Handover Summary"
+              rows={3}
+              value={distributeForm.notes}
+              onChange={(e) => setDistributeForm({ ...distributeForm, notes: e.target.value })}
+              placeholder="e.g. Distributed to 25 school children in Anuradhapura East, coordinated with Principal."
+              helper="Provide details on community beneficiaries served (remember: preserve personal identities)."
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <Button type="button" variant="outline" onClick={() => setSelectedContributionForDistribute(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" icon={<Camera size={15} />} loading={submittingDistribute}>
+                Save Distribution Evidence
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Modal: View Distribution Evidence */}
+      <Modal
+        isOpen={!!viewEvidenceContribution}
+        onClose={() => setViewEvidenceContribution(null)}
+        title="Field Distribution Evidence"
+        subtitle={`Accountability proof for contribution #${viewEvidenceContribution?.id?.substring(0, 8)}`}
+        maxWidth="600px"
+      >
+        {viewEvidenceContribution && (
+          <div>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#0f172a' }}>
+                {viewEvidenceContribution.campaignTitle}
+              </div>
+              <div className="text-xs text-muted" style={{ marginTop: '0.25rem' }}>
+                Target District: {viewEvidenceContribution.campaignDistrict} District &bull; Contributor: {viewEvidenceContribution.contributorName}
+              </div>
+            </div>
+
+            {viewEvidenceContribution.distributionEvidenceUrl && (
+              <div
+                style={{
+                  height: '240px',
+                  borderRadius: 'var(--radius-md)',
+                  overflow: 'hidden',
+                  backgroundColor: '#f1f5f9',
+                  marginBottom: '1rem',
+                  border: '1px solid var(--color-border)',
+                }}
+              >
+                <img
+                  src={viewEvidenceContribution.distributionEvidenceUrl}
+                  alt="Distribution Evidence"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => {
+                    e.target.style.display = 'none'
+                  }}
+                />
+              </div>
+            )}
+
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <span className="text-xs text-muted">Distributed Date:</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                  {viewEvidenceContribution.distributedAt
+                    ? new Date(viewEvidenceContribution.distributedAt).toLocaleDateString([], {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : 'Recorded'}
+                </span>
+              </div>
+              <div className="text-xs text-muted" style={{ marginBottom: '0.25rem' }}>
+                Field Notes:
+              </div>
+              <p style={{ fontSize: '0.875rem', color: '#334155', margin: 0, lineHeight: 1.5 }}>
+                {viewEvidenceContribution.distributionNotes || 'Distribution confirmed by verified charity organization.'}
+              </p>
+            </div>
+
+            {viewEvidenceContribution.distributionEvidenceUrl && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <a
+                  href={viewEvidenceContribution.distributionEvidenceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <ExternalLink size={14} /> Open Full Resolution Evidence Document
+                </a>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="outline" onClick={() => setViewEvidenceContribution(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

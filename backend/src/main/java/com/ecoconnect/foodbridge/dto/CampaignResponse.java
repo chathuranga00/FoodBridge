@@ -54,6 +54,9 @@ public class CampaignResponse {
     private OffsetDateTime approvedAt;
     private OffsetDateTime createdAt;
 
+    private String paymentInstructions;
+    private String handoverInstructions;
+
     public static CampaignResponse fromEntity(Campaign c) {
         UUID chId = null;
         String chName = null;
@@ -104,6 +107,8 @@ public class CampaignResponse {
                 .approvalNotes(c.getApprovalNotes())
                 .approvedAt(c.getApprovedAt())
                 .createdAt(c.getCreatedAt())
+                .paymentInstructions(c.getPaymentInstructions())
+                .handoverInstructions(c.getHandoverInstructions())
                 .build();
     }
 }

@@ -377,10 +377,31 @@ class CampaignWorkflowTests {
                 .notes("Will drop off at Monaragala collection center on Saturday.")
                 .build();
 
+        // 1. Pledging records contribution as PLEDGED without immediately incrementing campaign progress
         mockMvc.perform(post("/api/campaigns/" + campaignId + "/pledge")
                         .header("Authorization", "Bearer " + userToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(pledgeReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentQuantity", is(0)))
+                .andExpect(jsonPath("$.progressPercentage", is(0)));
+
+        // 2. Charity fetches incoming contributions and confirms receipt
+        MvcResult charityContribsRes = mockMvc.perform(get("/api/charity/contributions")
+                        .header("Authorization", "Bearer " + charityToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String contribId = objectMapper.readTree(charityContribsRes.getResponse().getContentAsString())
+                .get(0).get("id").asText();
+
+        mockMvc.perform(post("/api/contributions/" + contribId + "/confirm")
+                        .header("Authorization", "Bearer " + charityToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("CONFIRMED")));
+
+        // 3. Campaign progress is now updated ONLY from the CONFIRMED contribution
+        mockMvc.perform(get("/api/campaigns/" + campaignId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currentQuantity", is(15)))
                 .andExpect(jsonPath("$.progressPercentage", is(15)));

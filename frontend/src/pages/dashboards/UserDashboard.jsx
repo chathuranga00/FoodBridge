@@ -16,13 +16,16 @@ import {
   Clock,
   XCircle,
   ExternalLink,
+  FileText,
+  ShieldCheck,
+  Camera,
 } from 'lucide-react'
 import Card from '../../components/common/Card'
 import Button from '../../components/common/Button'
 import Table from '../../components/common/Table'
 import Modal from '../../components/common/Modal'
 import Loader from '../../components/common/Loader'
-import { groceryApi } from '../../api/client'
+import { groceryApi, contributionApi } from '../../api/client'
 
 export default function UserDashboard() {
   const { user } = useAuth()
@@ -33,6 +36,12 @@ export default function UserDashboard() {
   const [loadingReservations, setLoadingReservations] = useState(true)
   const [cancellingId, setCancellingId] = useState(null)
   const [copiedCodeId, setCopiedCodeId] = useState(null)
+
+  // Campaign Contributions State
+  const [myContributions, setMyContributions] = useState([])
+  const [loadingContributions, setLoadingContributions] = useState(true)
+  const [selectedContributionInstructions, setSelectedContributionInstructions] = useState(null)
+  const [selectedContributionEvidence, setSelectedContributionEvidence] = useState(null)
 
   const fetchReservations = async () => {
     try {
@@ -47,8 +56,21 @@ export default function UserDashboard() {
     }
   }
 
+  const fetchContributions = async () => {
+    try {
+      setLoadingContributions(true)
+      const res = await contributionApi.getMyContributions()
+      setMyContributions(res.data || [])
+    } catch (err) {
+      console.error('Error loading contributions:', err)
+    } finally {
+      setLoadingContributions(false)
+    }
+  }
+
   useEffect(() => {
     fetchReservations()
+    fetchContributions()
   }, [])
 
   const handleCancelReservation = async (reservationId) => {
@@ -77,6 +99,7 @@ export default function UserDashboard() {
   }
 
   const activeReservationsCount = myReservations.filter((r) => r.status === 'RESERVED').length
+  const activePledgesCount = myContributions.filter((c) => c.status === 'PLEDGED' || c.status === 'CONFIRMED').length
 
   const userStats = [
     {
@@ -84,28 +107,126 @@ export default function UserDashboard() {
       value: `${activeReservationsCount} Coupons`,
       icon: <Tag size={20} style={{ color: '#059669' }} />,
     },
-    { label: 'Active Pledges', value: '2', icon: <Heart size={20} style={{ color: '#e11d48' }} /> },
+    {
+      label: 'My Campaign Pledges',
+      value: `${activePledgesCount} Active`,
+      icon: <Heart size={20} style={{ color: '#e11d48' }} />,
+    },
     { label: 'Volunteer Tasks', value: '5 Done', icon: <Award size={20} style={{ color: '#0284c7' }} /> },
     { label: 'Sustainability Points', value: '420 pts', icon: <ShoppingBag size={20} style={{ color: '#b45309' }} /> },
   ]
 
-  const recentPledges = [
-    { id: '1', campaign: 'Colombo Flood Relief Kitchen', type: 'Dry Rations (Rice 10kg)', date: '2026-11-01', status: 'CONFIRMED' },
-    { id: '2', campaign: 'Kandy Eldercare Feeding Drive', type: 'Monetary Pledge (Rs. 5,000)', date: '2026-10-28', status: 'CONFIRMED' },
-    { id: '3', campaign: 'Galle Stray Feeder Network', type: 'Dog Biscuits (5 packets)', date: '2026-10-25', status: 'PENDING_CONFIRMATION' },
-  ]
-
   const pledgeColumns = [
-    { key: 'campaign', label: 'Campaign / Initiative' },
-    { key: 'type', label: 'Pledge Details' },
-    { key: 'date', label: 'Date Pledged' },
+    {
+      key: 'campaignTitle',
+      label: 'Campaign & District',
+      render: (val, row) => (
+        <div>
+          <button
+            onClick={() => navigate(`/campaigns/${row.campaignId}`)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-primary-700)',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              textAlign: 'left',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            {val}
+          </button>
+          <div className="text-xs text-muted" style={{ display: 'flex', gap: '0.3rem', marginTop: '2px' }}>
+            <span>{row.charityName}</span>
+            <span>•</span>
+            <MapPin size={11} style={{ color: '#dc2626' }} />
+            <span>{row.campaignDistrict} District</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'contributionType',
+      label: 'Contribution Type & Items',
+      render: (type, row) => (
+        <div>
+          <span
+            className={`badge ${
+              type === 'MONETARY_PLEDGE'
+                ? 'badge-sky'
+                : type === 'FOOD_ITEMS'
+                ? 'badge-amber'
+                : 'badge-emerald'
+            }`}
+            style={{ fontSize: '0.7rem', marginBottom: '3px' }}
+          >
+            {type === 'MONETARY_PLEDGE' ? 'Money Pledge' : type === 'FOOD_ITEMS' ? 'Food Supplies' : 'Other Resources'}
+          </span>
+          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+            {row.quantity} {row.unit || 'units'}
+            {row.monetaryAmount ? ` (Rs. ${Number(row.monetaryAmount).toLocaleString()})` : ''}
+          </div>
+          {row.itemDescription && (
+            <div className="text-xs text-muted" style={{ maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {row.itemDescription}
+            </div>
+          )}
+        </div>
+      ),
+    },
     {
       key: 'status',
-      label: 'Status',
+      label: 'Status (Rule 5)',
+      render: (status) => {
+        let badgeClass = 'badge-amber'
+        let text = 'Pledged (Awaiting Receipt)'
+        if (status === 'CONFIRMED') {
+          badgeClass = 'badge-sky'
+          text = 'Receipt Confirmed'
+        } else if (status === 'DISTRIBUTED') {
+          badgeClass = 'badge-emerald'
+          text = 'Distributed with Evidence!'
+        } else if (status === 'REJECTED' || status === 'CANCELLED') {
+          badgeClass = 'badge-rose'
+          text = status
+        }
+        return <span className={`badge ${badgeClass}`}>{text}</span>
+      },
+    },
+    {
+      key: 'createdAt',
+      label: 'Pledge Date',
       render: (val) => (
-        <span className={`badge ${val === 'CONFIRMED' ? 'badge-emerald' : 'badge-amber'}`}>
-          {val === 'CONFIRMED' ? 'Confirmed by Charity' : 'Pending Receipt'}
+        <span className="text-xs text-muted">
+          {val ? new Date(val).toLocaleDateString() : 'Recent'}
         </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions & Evidence',
+      render: (_, row) => (
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <Button
+            size="sm"
+            variant="outline"
+            icon={<FileText size={12} />}
+            onClick={() => setSelectedContributionInstructions(row)}
+          >
+            Instructions
+          </Button>
+          {row.status === 'DISTRIBUTED' && row.distributionEvidenceUrl && (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<Camera size={12} />}
+              onClick={() => setSelectedContributionEvidence(row)}
+            >
+              Proof
+            </Button>
+          )}
+        </div>
       ),
     },
   ]
@@ -385,12 +506,208 @@ export default function UserDashboard() {
 
       {/* Pledges Table */}
       <Card
-        title="My Pledged Contributions"
-        subtitle="Rule 5: No payment handling - all donations are confirmed by recipient charities"
+        title="My Campaign Contributions (Rule 5 & Rule 8)"
+        subtitle="100% Direct aid without payment processing. Pledges are confirmed directly by recipient charities and tracked through distribution evidence."
+        badge={
+          myContributions.length > 0 ? (
+            <span className="badge badge-sky">{myContributions.length} Pledges</span>
+          ) : null
+        }
+        action={
+          <Button
+            size="sm"
+            variant="primary"
+            icon={<Heart size={14} />}
+            onClick={() => navigate('/campaigns')}
+          >
+            Browse Campaigns
+          </Button>
+        }
         style={{ marginBottom: '2rem' }}
       >
-        <Table columns={pledgeColumns} data={recentPledges} />
+        {loadingContributions ? (
+          <div style={{ padding: '2rem 0' }}>
+            <Loader message="Loading your pledged contributions..." />
+          </div>
+        ) : myContributions.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
+            <Heart size={36} style={{ color: '#94a3b8', marginBottom: '0.75rem' }} />
+            <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              No Community Contributions Yet
+            </h4>
+            <p className="text-xs text-muted" style={{ maxWidth: '420px', margin: '0 auto 1.25rem auto' }}>
+              Support a verified rural school or family in need with clean water, books, or food supplies. Zero transaction cuts.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              icon={<ArrowRight size={15} />}
+              onClick={() => navigate('/campaigns')}
+            >
+              Browse Verified Campaigns
+            </Button>
+          </div>
+        ) : (
+          <Table columns={pledgeColumns} data={myContributions} />
+        )}
       </Card>
+
+      {/* Modal: Agreed Payment & Handover Instructions */}
+      <Modal
+        isOpen={!!selectedContributionInstructions}
+        onClose={() => setSelectedContributionInstructions(null)}
+        title={`Charity Instructions: ${selectedContributionInstructions?.campaignTitle}`}
+        subtitle={`Organizing Charity: ${selectedContributionInstructions?.charityName}`}
+        maxWidth="600px"
+      >
+        {selectedContributionInstructions && (
+          <div>
+            <div
+              style={{
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                gap: '0.75rem',
+                alignItems: 'center',
+              }}
+            >
+              <ShieldCheck size={22} style={{ color: '#16a34a', flexShrink: 0 }} />
+              <div style={{ fontSize: '0.85rem', color: '#14532d', lineHeight: 1.5 }}>
+                <strong>Zero Payment Processing Notice:</strong> FoodBridge does not deduct fees or act as a financial intermediary. Please follow the charity's instructions below to complete your direct contribution.
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>
+                Bank Deposit & Transfer Instructions
+              </h4>
+              <div
+                style={{
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6,
+                  color: '#334155',
+                }}
+              >
+                {selectedContributionInstructions.paymentInstructions || 'Direct bank transfer details provided upon contacting the charity.'}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>
+                Physical Handover & Drop-off Location
+              </h4>
+              <div
+                style={{
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6,
+                  color: '#334155',
+                }}
+              >
+                {selectedContributionInstructions.handoverInstructions || 'Please coordinate physical delivery directly with the charity.'}
+              </div>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.875rem 1rem',
+                fontSize: '0.825rem',
+                color: '#1e40af',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div><strong>Charity Contact:</strong> {selectedContributionInstructions.charityContactPerson || selectedContributionInstructions.charityName}</div>
+              <div><strong>Phone:</strong> {selectedContributionInstructions.charityContactPhone || 'Available on request'}</div>
+              <div><strong>Email:</strong> {selectedContributionInstructions.charityContactEmail || 'N/A'}</div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="primary" onClick={() => setSelectedContributionInstructions(null)}>
+                Understood & Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal: Distribution Proof & Evidence */}
+      <Modal
+        isOpen={!!selectedContributionEvidence}
+        onClose={() => setSelectedContributionEvidence(null)}
+        title="Field Distribution Evidence & Proof"
+        subtitle={`Delivered by ${selectedContributionEvidence?.charityName} for ${selectedContributionEvidence?.campaignTitle}`}
+        maxWidth="600px"
+      >
+        {selectedContributionEvidence && (
+          <div>
+            {selectedContributionEvidence.distributionEvidenceUrl && (
+              <div
+                style={{
+                  height: '240px',
+                  backgroundColor: '#f1f5f9',
+                  borderRadius: 'var(--radius-md)',
+                  overflow: 'hidden',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                <img
+                  src={selectedContributionEvidence.distributionEvidenceUrl}
+                  alt="Field Distribution Proof"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => { e.target.style.display = 'none' }}
+                />
+              </div>
+            )}
+
+            <div
+              style={{
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#166534', marginBottom: '0.25rem' }}>
+                Handover Confirmed & Distributed
+              </div>
+              <p style={{ fontSize: '0.85rem', color: '#14532d', margin: 0, lineHeight: 1.5 }}>
+                {selectedContributionEvidence.distributionNotes || 'Handed over directly to vulnerable beneficiaries in the field.'}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: '#64748b' }}>
+              <span>
+                Delivered: {selectedContributionEvidence.distributedAt ? new Date(selectedContributionEvidence.distributedAt).toLocaleDateString() : 'Recently'}
+              </span>
+              {selectedContributionEvidence.distributionEvidenceUrl && (
+                <a
+                  href={selectedContributionEvidence.distributionEvidenceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                >
+                  <ExternalLink size={13} /> View Full File
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

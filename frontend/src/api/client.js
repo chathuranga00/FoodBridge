@@ -178,3 +178,13 @@ export const campaignApi = {
   moderateCampaign: (id, data) => apiClient.post(`/admin/campaigns/${id}/moderate`, data),
 }
 
+// Campaign Contribution Tracking API (WITHOUT payment processing)
+export const contributionApi = {
+  pledgeContribution: (campaignId, data) => apiClient.post(`/campaigns/${campaignId}/contributions`, data),
+  getMyContributions: () => apiClient.get('/contributions/my'),
+  getContributionById: (id) => apiClient.get(`/contributions/${id}`),
+  getCharityContributions: (params) => apiClient.get('/charity/contributions', { params }),
+  confirmContribution: (id, data) => apiClient.post(`/contributions/${id}/confirm`, data || {}),
+  recordDistribution: (id, data) => apiClient.post(`/contributions/${id}/distribute`, data),
+}
+
