@@ -22,6 +22,8 @@ public class ImpactSummaryResponse {
     private Long resourcesDistributed;
     private Long peopleSupported;
     private Long activeVolunteers;
+    private Long totalVolunteerHours;
+    private Long completedVolunteerActivities;
     private Double co2SavingsKg;
     private Long mealsProvided;
     private Long districtsSupported;

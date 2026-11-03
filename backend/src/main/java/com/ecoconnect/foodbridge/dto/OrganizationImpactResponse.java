@@ -29,6 +29,8 @@ public class OrganizationImpactResponse {
     private Double co2SavingsKg;
     private Long mealsProvided;
     private Long completedPartnerships;
+    private Long volunteerHours;
+    private Long volunteersMobilized;
 
     private List<CategoryBreakdownItem> categoryBreakdown;
     private List<MonthlyTrendItem> monthlyTrends;

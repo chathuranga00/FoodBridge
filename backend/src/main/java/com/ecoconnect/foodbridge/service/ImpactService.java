@@ -38,6 +38,7 @@ public class ImpactService {
     private final CampaignContributionRepository campaignContributionRepository;
     private final PartnershipRepository partnershipRepository;
     private final VolunteerRepository volunteerRepository;
+    private final VolunteerParticipationRepository volunteerParticipationRepository;
     private final UserRepository userRepository;
 
     /**
@@ -127,8 +128,12 @@ public class ImpactService {
 
         long totalPeopleSupported = peopleFedFromRescue + beneficiariesFromCampaigns + (charityCapacity > 0 ? (charityCapacity / 2) : 0L);
 
-        // 8. Active Volunteers - ONLY Volunteer with VerificationStatus.VERIFIED
-        long activeVolunteers = volunteerRepository.countByVerificationStatus(VerificationStatus.VERIFIED);
+        // 8. Active Volunteers & Community Participation
+        long verifiedVolunteers = volunteerRepository.countByVerificationStatus(VerificationStatus.VERIFIED);
+        long attendedVolunteers = volunteerParticipationRepository.countDistinctVolunteersByStatus(ParticipationStatus.ATTENDED);
+        long activeVolunteers = Math.max(verifiedVolunteers, attendedVolunteers);
+        long totalVolunteerHours = volunteerParticipationRepository.sumHoursVolunteeredByStatus(ParticipationStatus.ATTENDED).longValue();
+        long completedVolunteerActivities = volunteerParticipationRepository.countByStatus(ParticipationStatus.ATTENDED);
 
         // Districts Supported
         Set<String> uniqueDistricts = new HashSet<>();
@@ -164,6 +169,8 @@ public class ImpactService {
                 .resourcesDistributed(resourcesDistributed)
                 .peopleSupported(totalPeopleSupported)
                 .activeVolunteers(activeVolunteers)
+                .totalVolunteerHours(totalVolunteerHours)
+                .completedVolunteerActivities(completedVolunteerActivities)
                 .co2SavingsKg(roundTwoDecimals(co2SavingsKg))
                 .mealsProvided(mealsRescued)
                 .districtsSupported(districtsSupported)
@@ -351,6 +358,9 @@ public class ImpactService {
         List<MonthlyTrendItem> monthlyTrends = computeMonthlyTrends(charityRequests, Collections.emptyList(), distributed);
         List<ImpactMilestoneItem> recent = buildRecentMilestones(charityRequests, Collections.emptyList(), completedCampaigns, distributed);
 
+        long volunteersMobilized = volunteerParticipationRepository.countDistinctVolunteersByCharityIdAndStatus(charity.getId(), ParticipationStatus.ATTENDED);
+        long volunteerHours = volunteerParticipationRepository.sumHoursVolunteeredByCharityIdAndStatus(charity.getId(), ParticipationStatus.ATTENDED).longValue();
+
         return OrganizationImpactResponse.builder()
                 .organizationId(charity.getId())
                 .organizationName(charity.getCharityName())
@@ -365,6 +375,8 @@ public class ImpactService {
                 .co2SavingsKg(roundTwoDecimals(co2Savings))
                 .mealsProvided(mealsProvided)
                 .completedPartnerships((long) completedPartnerships.size())
+                .volunteerHours(volunteerHours)
+                .volunteersMobilized(volunteersMobilized)
                 .categoryBreakdown(categories)
                 .monthlyTrends(monthlyTrends)
                 .recentActivities(recent)

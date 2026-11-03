@@ -22,6 +22,8 @@ import PublicImpact from './pages/public/PublicImpact'
 import BrowseBusinesses from './pages/public/BrowseBusinesses'
 import BusinessProfile from './pages/public/BusinessProfile'
 import BusinessPartnerships from './pages/public/BusinessPartnerships'
+import VolunteerActivities from './pages/public/VolunteerActivities'
+import NotificationsPage from './pages/public/NotificationsPage'
 
 // Dashboard Shells
 import UserDashboard from './pages/dashboards/UserDashboard'
@@ -46,6 +48,9 @@ export default function App() {
               <Route path="/businesses/:id" element={<BusinessProfile />} />
               <Route path="/business/:id" element={<BusinessProfile />} />
               <Route path="/business-partnerships" element={<BusinessPartnerships />} />
+              <Route path="/volunteer" element={<VolunteerActivities />} />
+              <Route path="/volunteer-activities" element={<VolunteerActivities />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/grocery-offers" element={<BrowseGroceryOffers />} />
               <Route path="/campaigns" element={<BrowseCampaigns />} />
               <Route path="/campaigns/:id" element={<CampaignDetail />} />

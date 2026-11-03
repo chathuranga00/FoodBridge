@@ -2,6 +2,9 @@ package com.ecoconnect.foodbridge.repository;
 
 import com.ecoconnect.foodbridge.model.Notification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -15,5 +18,12 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     List<Notification> findByUserIdAndIsReadFalseOrderByCreatedAtDesc(UUID userId);
 
     long countByUserIdAndIsReadFalse(UUID userId);
-}
 
+    @Modifying
+    @Query("UPDATE Notification n SET n.isRead = true WHERE n.user.id = :userId")
+    void markAllAsReadByUserId(@Param("userId") UUID userId);
+
+    @Modifying
+    @Query("UPDATE Notification n SET n.isRead = true WHERE n.id = :id AND n.user.id = :userId")
+    int markAsReadByIdAndUserId(@Param("id") UUID id, @Param("userId") UUID userId);
+}

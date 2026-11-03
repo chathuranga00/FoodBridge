@@ -41,17 +41,20 @@ public class GroceryOfferService {
     private final UserRepository userRepository;
     private final BusinessRepository businessRepository;
     private final VerificationGuardService verificationGuardService;
+    private final EmailService emailService;
 
     public GroceryOfferService(GroceryOfferRepository groceryOfferRepository,
                                GroceryReservationRepository reservationRepository,
                                UserRepository userRepository,
                                BusinessRepository businessRepository,
-                               VerificationGuardService verificationGuardService) {
+                               VerificationGuardService verificationGuardService,
+                               EmailService emailService) {
         this.groceryOfferRepository = groceryOfferRepository;
         this.reservationRepository = reservationRepository;
         this.userRepository = userRepository;
         this.businessRepository = businessRepository;
         this.verificationGuardService = verificationGuardService;
+        this.emailService = emailService;
     }
 
     /**
@@ -252,6 +255,21 @@ public class GroceryOfferService {
         GroceryReservation saved = reservationRepository.save(reservation);
         log.info("Reserved {} item(s) for offer {} by user {}. Redemption Code: {}",
                 requestedQty, offerId, userEmail, redemptionCode);
+
+        // Dispatch simulated email & in-app coupon reserved notification
+        try {
+            String shopName = refreshedOffer.getBusiness() != null ? refreshedOffer.getBusiness().getBusinessName() : "Partner Store";
+            emailService.sendCouponReservedEmail(
+                    user,
+                    refreshedOffer.getTitle(),
+                    shopName,
+                    redemptionCode,
+                    expiresAt,
+                    saved.getId()
+            );
+        } catch (Exception e) {
+            log.warn("Failed to dispatch coupon reserved notification: {}", e.getMessage());
+        }
 
         return GroceryReservationResponse.fromEntity(saved);
     }

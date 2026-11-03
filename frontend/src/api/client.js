@@ -257,6 +257,27 @@ export const promotionApi = {
   toggleBusinessFeatured: (id, featured) => apiClient.put(`/admin/businesses/${id}/feature?featured=${featured}`),
 }
 
+// In-App Notification Center API
+export const notificationApi = {
+  getAll: () => apiClient.get('/notifications'),
+  getUnreadCount: () => apiClient.get('/notifications/unread-count'),
+  markAsRead: (id) => apiClient.patch(`/notifications/${id}/read`),
+  markAllAsRead: () => apiClient.patch('/notifications/read-all'),
+}
+
+// Volunteer Opportunities & Participation API
+export const volunteerApi = {
+  getOpportunities: (params) => apiClient.get('/volunteer/opportunities', { params }),
+  getOpportunityById: (id) => apiClient.get(`/volunteer/opportunities/${id}`),
+  createOpportunity: (data) => apiClient.post('/volunteer/opportunities', data),
+  signUp: (id, data) => apiClient.post(`/volunteer/opportunities/${id}/signup`, data || {}),
+  cancelSignUp: (id) => apiClient.post(`/volunteer/opportunities/${id}/cancel`),
+  getMyParticipations: () => apiClient.get('/volunteer/my-participations'),
+  getAttendees: (id) => apiClient.get(`/volunteer/opportunities/${id}/attendees`),
+  markAttendance: (opportunityId, participationId, data) =>
+    apiClient.post(`/volunteer/opportunities/${opportunityId}/attendees/${participationId}/attendance`, data),
+}
+
 
 
 

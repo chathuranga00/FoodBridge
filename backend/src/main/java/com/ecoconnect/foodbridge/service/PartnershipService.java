@@ -698,7 +698,7 @@ public class PartnershipService {
 
     private void sendNotification(User recipient, String title, String message, String type, UUID refId) {
         try {
-            emailService.sendInAppNotification(recipient, title, message, type, refId, "PARTNERSHIP");
+            emailService.sendPartnershipUpdateEmail(recipient, title, message, type, null, refId);
         } catch (Exception e) {
             log.warn("Failed to dispatch partnership notification to user {}: {}", recipient.getEmail(), e.getMessage());
         }

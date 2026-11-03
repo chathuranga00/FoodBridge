@@ -47,7 +47,7 @@ import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
 import PartnershipTimeline from '../../components/common/PartnershipTimeline'
 import PartnershipMessageThread from '../../components/common/PartnershipMessageThread'
-import { profileApi, foodListingApi, foodRescueApi, campaignApi, contributionApi, partnershipApi, impactApi } from '../../api/client'
+import { profileApi, foodListingApi, foodRescueApi, campaignApi, contributionApi, partnershipApi, impactApi, volunteerApi } from '../../api/client'
 import ImpactAnalyticsView from '../../components/impact/ImpactAnalyticsView'
 import { SRI_LANKA_DISTRICTS, CAMPAIGN_NEED_TYPES } from '../../utils/constants'
 
@@ -296,6 +296,121 @@ export default function CharityDashboard() {
     } catch (err) {
       setSelectedPartnership(partnership)
       setIsPartnershipDetailsOpen(true)
+    }
+  }
+
+  // =========================================================================
+  // Volunteer Drives & Attendance State & Handlers
+  // =========================================================================
+  const [volunteerDrives, setVolunteerDrives] = useState([])
+  const [loadingVolunteerDrives, setLoadingVolunteerDrives] = useState(false)
+  const [attendeesModalOpen, setAttendeesModalOpen] = useState(false)
+  const [selectedDriveForAttendees, setSelectedDriveForAttendees] = useState(null)
+  const [attendees, setAttendees] = useState([])
+  const [loadingAttendees, setLoadingAttendees] = useState(false)
+  const [attendanceHours, setAttendanceHours] = useState({})
+  const [attendanceNotes, setAttendanceNotes] = useState({})
+  const [markingAttendanceId, setMarkingAttendanceId] = useState(null)
+  const [createDriveModalOpen, setCreateDriveModalOpen] = useState(false)
+  const [creatingDrive, setCreatingDrive] = useState(false)
+  const [driveForm, setDriveForm] = useState({
+    title: '',
+    description: '',
+    category: 'FOOD_DISTRIBUTION',
+    district: 'Colombo',
+    city: '',
+    addressLine: '',
+    eventDate: '',
+    startTime: '09:00 AM',
+    endTime: '01:00 PM',
+    estimatedHours: 4.0,
+    volunteersNeeded: 5,
+    skillsRequired: '',
+    contactPhone: '',
+  })
+
+  const loadVolunteerDrives = async () => {
+    try {
+      setLoadingVolunteerDrives(true)
+      const res = await volunteerApi.getOpportunities()
+      const myDrives = (res.data || []).filter(
+        (opp) => opp.organizerUserId === user?.id || (profile?.id && opp.charityId === profile.id)
+      )
+      setVolunteerDrives(myDrives.length > 0 ? myDrives : res.data || [])
+    } catch (err) {
+      console.error('Failed to load volunteer drives:', err)
+    } finally {
+      setLoadingVolunteerDrives(false)
+    }
+  }
+
+  const handleOpenAttendees = async (opp) => {
+    setSelectedDriveForAttendees(opp)
+    setAttendeesModalOpen(true)
+    try {
+      setLoadingAttendees(true)
+      const res = await volunteerApi.getAttendees(opp.id)
+      setAttendees(res.data || [])
+      const initialHours = {}
+      ;(res.data || []).forEach((a) => {
+        initialHours[a.id] = a.hoursVolunteered > 0 ? a.hoursVolunteered : (opp.estimatedHours || 2.0)
+      })
+      setAttendanceHours(initialHours)
+    } catch (err) {
+      console.error('Failed to load attendees:', err)
+      showToast('Failed to load attendee roster.', 'error')
+    } finally {
+      setLoadingAttendees(false)
+    }
+  }
+
+  const handleMarkAttendance = async (participationId, status) => {
+    if (!selectedDriveForAttendees) return
+    try {
+      setMarkingAttendanceId(participationId)
+      const hours = parseFloat(attendanceHours[participationId]) || selectedDriveForAttendees.estimatedHours || 2.0
+      const notes = attendanceNotes[participationId] || ''
+      await volunteerApi.markAttendance(selectedDriveForAttendees.id, participationId, {
+        status,
+        hoursVolunteered: hours,
+        attendanceNotes: notes,
+      })
+      showToast(
+        status === 'ATTENDED'
+          ? `Marked attendance (${hours} hrs credited to Impact Dashboard)!`
+          : 'Volunteer marked as No-Show.',
+        status === 'ATTENDED' ? 'success' : 'info'
+      )
+      const res = await volunteerApi.getAttendees(selectedDriveForAttendees.id)
+      setAttendees(res.data || [])
+      loadVolunteerDrives()
+    } catch (err) {
+      console.error('Failed to mark attendance:', err)
+      showToast(err.response?.data?.message || 'Failed to update attendance.', 'error')
+    } finally {
+      setMarkingAttendanceId(null)
+    }
+  }
+
+  const handleCreateDriveSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      setCreatingDrive(true)
+      await volunteerApi.createOpportunity({
+        ...driveForm,
+        district: driveForm.district || profile?.district || 'Colombo',
+        estimatedHours: parseFloat(driveForm.estimatedHours) || 2.0,
+        volunteersNeeded: parseInt(driveForm.volunteersNeeded, 10) || 1,
+        contactPhone: driveForm.contactPhone || profile?.contactPhone || user?.phoneNumber || '',
+      })
+      showToast('Volunteer opportunity created successfully!', 'success')
+      setCreateDriveModalOpen(false)
+      loadVolunteerDrives()
+    } catch (err) {
+      console.error('Failed to create volunteer drive:', err)
+      showToast(err.response?.data?.message || 'Failed to create volunteer drive.', 'error')
+    } finally {
+      setCreatingDrive(false)
     }
   }
 
@@ -1314,6 +1429,29 @@ export default function CharityDashboard() {
           <TrendingUp size={18} />
           Impact & Relief Report
         </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('volunteers')
+            loadVolunteerDrives()
+          }}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'volunteers' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
+            color: activeTab === 'volunteers' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <Users size={18} />
+          Volunteer Drives
+        </button>
       </div>
 
       {/* Tab 1: Browse Available Food */}
@@ -1919,6 +2057,469 @@ export default function CharityDashboard() {
           }}
         />
       )}
+
+      {/* Tab: Volunteer Drives & Attendance Management */}
+      {activeTab === 'volunteers' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Header & Post Button */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}
+          >
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem' }}>
+                Volunteer Opportunities & Field Mobilization
+              </h2>
+              <p style={{ color: 'var(--color-text-muted)', margin: 0, fontSize: '0.9rem' }}>
+                Post volunteer opportunities for food distribution, school supplies, environmental cleanups, or animal welfare. Mark attendance to feed completed hours into the Impact Dashboard!
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => setCreateDriveModalOpen(true)}
+            >
+              Post Volunteer Drive
+            </Button>
+          </div>
+
+          {/* Overview Info Banner */}
+          <div
+            style={{
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: '12px',
+              padding: '1rem 1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+            }}
+          >
+            <ShieldCheck size={24} color="#16a34a" style={{ flexShrink: 0 }} />
+            <div style={{ fontSize: '0.875rem', color: '#15803d', lineHeight: 1.45 }}>
+              <strong>Verified Attendance Impact Guarantee:</strong> When you mark attendance for volunteers, their verified hours are permanently credited to their community record and aggregated into the platform Impact Dashboard.
+            </div>
+          </div>
+
+          {/* Drives List Table */}
+          <Card title="Your Volunteer Opportunities">
+            {loadingVolunteerDrives ? (
+              <div style={{ padding: '2rem 0', textAlign: 'center' }}>
+                <Loader message="Loading volunteer opportunities..." />
+              </div>
+            ) : volunteerDrives.length === 0 ? (
+              <div style={{ padding: '3rem 0', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                <Users size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />
+                <h4 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>No Volunteer Drives Created</h4>
+                <p style={{ margin: '0 0 1rem', fontSize: '0.875rem' }}>
+                  Create your first volunteer opportunity to mobilize community members for your relief projects.
+                </p>
+                <Button variant="primary" size="sm" onClick={() => setCreateDriveModalOpen(true)}>
+                  Create Opportunity
+                </Button>
+              </div>
+            ) : (
+              <Table
+                columns={[
+                  {
+                    header: 'Title & Category',
+                    render: (opp) => (
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--color-text)', marginBottom: '2px' }}>
+                          {opp.title}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            backgroundColor: '#f3f4f6',
+                            color: '#4b5563',
+                          }}
+                        >
+                          {opp.category}
+                        </span>
+                      </div>
+                    ),
+                  },
+                  {
+                    header: 'Date & Location',
+                    render: (opp) => (
+                      <div style={{ fontSize: '0.85rem' }}>
+                        <div>{opp.eventDate} ({opp.startTime || 'TBD'})</div>
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '0.775rem' }}>
+                          {opp.city ? `${opp.city}, ` : ''}{opp.district}
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    header: 'Volunteers',
+                    render: (opp) => (
+                      <div style={{ fontSize: '0.85rem' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
+                          {opp.volunteersRegistered}
+                        </span>{' '}
+                        / {opp.volunteersNeeded} needed
+                      </div>
+                    ),
+                  },
+                  {
+                    header: 'Status',
+                    render: (opp) => (
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          backgroundColor: opp.status === 'ACTIVE' ? '#dcfce7' : '#f3f4f6',
+                          color: opp.status === 'ACTIVE' ? '#16a34a' : '#6b7280',
+                        }}
+                      >
+                        {opp.status}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: 'Action',
+                    render: (opp) => (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        icon={<Users size={14} />}
+                        onClick={() => handleOpenAttendees(opp)}
+                      >
+                        Roster & Attendance ({opp.volunteersRegistered})
+                      </Button>
+                    ),
+                  },
+                ]}
+                data={volunteerDrives}
+              />
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Modal: View Attendees Roster & Mark Attendance */}
+      <Modal
+        isOpen={attendeesModalOpen}
+        onClose={() => setAttendeesModalOpen(false)}
+        title={`Volunteer Roster: ${selectedDriveForAttendees?.title}`}
+        subtitle={`Event Date: ${selectedDriveForAttendees?.eventDate} • Estimated: ${selectedDriveForAttendees?.estimatedHours} hrs`}
+        maxWidth="800px"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div
+            style={{
+              padding: '10px 14px',
+              backgroundColor: '#f9fafb',
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              color: 'var(--color-text-muted)',
+            }}
+          >
+            Confirm attendance for registered community members. Marking <strong>ATTENDED</strong> records their hours, updates their profile, and feeds the verified activity into the platform Impact Dashboard.
+          </div>
+
+          {loadingAttendees ? (
+            <div style={{ padding: '2rem 0', textAlign: 'center' }}>
+              <Loader message="Loading attendees roster..." />
+            </div>
+          ) : attendees.length === 0 ? (
+            <div style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+              <Users size={32} style={{ margin: '0 auto 0.5rem', opacity: 0.3 }} />
+              <p style={{ margin: 0, fontSize: '0.9rem' }}>No volunteers have registered for this drive yet.</p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
+                    <th style={{ padding: '8px 12px' }}>Volunteer</th>
+                    <th style={{ padding: '8px 12px' }}>Status</th>
+                    <th style={{ padding: '8px 12px' }}>Hours</th>
+                    <th style={{ padding: '8px 12px' }}>Organizer Notes</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendees.map((a) => (
+                    <tr key={a.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: '12px' }}>
+                        <div style={{ fontWeight: 600 }}>{a.volunteerName}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                          {a.volunteerEmail} • {a.volunteerPhone || 'No phone'}
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            backgroundColor:
+                              a.status === 'ATTENDED'
+                                ? '#dcfce7'
+                                : a.status === 'NO_SHOW'
+                                ? '#fee2e2'
+                                : '#e0f2fe',
+                            color:
+                              a.status === 'ATTENDED'
+                                ? '#16a34a'
+                                : a.status === 'NO_SHOW'
+                                ? '#dc2626'
+                                : '#0284c7',
+                          }}
+                        >
+                          {a.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', width: '100px' }}>
+                        {a.status === 'ATTENDED' ? (
+                          <span style={{ fontWeight: 700, color: '#16a34a' }}>{a.hoursVolunteered} hrs</span>
+                        ) : (
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0.5"
+                            value={attendanceHours[a.id] || ''}
+                            onChange={(e) =>
+                              setAttendanceHours({ ...attendanceHours, [a.id]: e.target.value })
+                            }
+                            style={{
+                              width: '80px',
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--color-border)',
+                              fontSize: '0.85rem',
+                            }}
+                          />
+                        )}
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {a.status === 'ATTENDED' ? (
+                          <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                            {a.attendanceNotes || '—'}
+                          </span>
+                        ) : (
+                          <input
+                            type="text"
+                            placeholder="Optional feedback..."
+                            value={attendanceNotes[a.id] || ''}
+                            onChange={(e) =>
+                              setAttendanceNotes({ ...attendanceNotes, [a.id]: e.target.value })
+                            }
+                            style={{
+                              width: '100%',
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--color-border)',
+                              fontSize: '0.8rem',
+                            }}
+                          />
+                        )}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                          <Button
+                            size="sm"
+                            variant={a.status === 'ATTENDED' ? 'secondary' : 'primary'}
+                            disabled={markingAttendanceId === a.id}
+                            onClick={() => handleMarkAttendance(a.id, 'ATTENDED')}
+                            style={{
+                              backgroundColor: a.status === 'ATTENDED' ? '#dcfce7' : '#16a34a',
+                              color: a.status === 'ATTENDED' ? '#15803d' : '#ffffff',
+                              border: 'none',
+                            }}
+                          >
+                            <Check size={14} /> {a.status === 'ATTENDED' ? 'Attended' : 'Mark Attended'}
+                          </Button>
+                          {a.status !== 'ATTENDED' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={markingAttendanceId === a.id}
+                              onClick={() => handleMarkAttendance(a.id, 'NO_SHOW')}
+                              style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                            >
+                              No-Show
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+            <Button variant="secondary" onClick={() => setAttendeesModalOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal: Create Volunteer Drive */}
+      <Modal
+        isOpen={createDriveModalOpen}
+        onClose={() => setCreateDriveModalOpen(false)}
+        title="Post New Volunteer Opportunity"
+        subtitle="Call for community volunteers for food distribution, school supply drives, or environmental aid."
+        maxWidth="600px"
+      >
+        <form onSubmit={handleCreateDriveSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <Input
+            label="Drive Title *"
+            required
+            placeholder="e.g., Saturday Community Food Distribution"
+            value={driveForm.title}
+            onChange={(e) => setDriveForm({ ...driveForm, title: e.target.value })}
+          />
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '4px' }}>
+              Category *
+            </label>
+            <select
+              value={driveForm.category}
+              onChange={(e) => setDriveForm({ ...driveForm, category: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--color-border)',
+                backgroundColor: '#ffffff',
+                fontSize: '0.9rem',
+              }}
+            >
+              <option value="FOOD_DISTRIBUTION">Food Collection & Distribution</option>
+              <option value="SCHOOL_SUPPLIES">School Supply Drives</option>
+              <option value="ENVIRONMENTAL">Environmental & Cleanups</option>
+              <option value="ANIMAL_WELFARE">Animal Welfare & Stray Feeding</option>
+            </select>
+          </div>
+
+          <Textarea
+            label="Description & Volunteer Duties *"
+            required
+            rows={3}
+            placeholder="Detail the activities, location specifics, and volunteer requirements..."
+            value={driveForm.description}
+            onChange={(e) => setDriveForm({ ...driveForm, description: e.target.value })}
+          />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '4px' }}>
+                District *
+              </label>
+              <select
+                value={driveForm.district}
+                onChange={(e) => setDriveForm({ ...driveForm, district: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: '#ffffff',
+                  fontSize: '0.9rem',
+                }}
+              >
+                {SRI_LANKA_DISTRICTS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <Input
+              label="City / Town"
+              placeholder="e.g., Kandy Town"
+              value={driveForm.city}
+              onChange={(e) => setDriveForm({ ...driveForm, city: e.target.value })}
+            />
+          </div>
+
+          <Input
+            label="Meeting Address / Landmark"
+            placeholder="e.g., Central Bus Stand Community Center"
+            value={driveForm.addressLine}
+            onChange={(e) => setDriveForm({ ...driveForm, addressLine: e.target.value })}
+          />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <Input
+              label="Event Date *"
+              type="date"
+              required
+              value={driveForm.eventDate}
+              onChange={(e) => setDriveForm({ ...driveForm, eventDate: e.target.value })}
+            />
+
+            <Input
+              label="Volunteers Needed *"
+              type="number"
+              min="1"
+              required
+              value={driveForm.volunteersNeeded}
+              onChange={(e) => setDriveForm({ ...driveForm, volunteersNeeded: e.target.value })}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+            <Input
+              label="Start Time"
+              placeholder="09:00 AM"
+              value={driveForm.startTime}
+              onChange={(e) => setDriveForm({ ...driveForm, startTime: e.target.value })}
+            />
+
+            <Input
+              label="End Time"
+              placeholder="01:00 PM"
+              value={driveForm.endTime}
+              onChange={(e) => setDriveForm({ ...driveForm, endTime: e.target.value })}
+            />
+
+            <Input
+              label="Hours (est.)"
+              type="number"
+              step="0.5"
+              value={driveForm.estimatedHours}
+              onChange={(e) => setDriveForm({ ...driveForm, estimatedHours: e.target.value })}
+            />
+          </div>
+
+          <Input
+            label="Required Skills / Gear"
+            placeholder="e.g., Comfortable footwear, water bottle"
+            value={driveForm.skillsRequired}
+            onChange={(e) => setDriveForm({ ...driveForm, skillsRequired: e.target.value })}
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.75rem' }}>
+            <Button variant="secondary" onClick={() => setCreateDriveModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={creatingDrive}>
+              {creatingDrive ? 'Posting...' : 'Post Volunteer Drive'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal: Send Food Rescue Request */}
       <Modal

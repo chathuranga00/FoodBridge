@@ -97,6 +97,8 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/map/**").permitAll()
                 // Public Impact Statistics and reports
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/impact/summary", "/api/impact/stats", "/api/impact/organization/*", "/api/impact/export").permitAll()
+                // Public Volunteer Opportunities
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/volunteer/opportunities", "/api/volunteer/opportunities/*").permitAll()
                 // Current authenticated user profile
                 .requestMatchers("/api/auth/me").authenticated()
                 // Local dev H2 console

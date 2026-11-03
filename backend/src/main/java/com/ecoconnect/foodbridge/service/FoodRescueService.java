@@ -199,6 +199,26 @@ public class FoodRescueService {
             log.info("Restaurant [{}] APPROVED request [{}] for listing [{}]. Listing is now RESERVED.",
                     listing.getBusiness().getBusinessName(), request.getId(), listing.getTitle());
 
+            // Dispatch notification & email stub to the requesting charity
+            User requesterUser = request.getCharity() != null ? request.getCharity().getUser() :
+                    (request.getAnimalOrg() != null ? request.getAnimalOrg().getUser() : null);
+            if (requesterUser != null) {
+                String pickupWindow = (listing.getPickupStart() != null && listing.getPickupEnd() != null)
+                        ? listing.getPickupStart() + " to " + listing.getPickupEnd()
+                        : "During scheduled business hours";
+                try {
+                    emailService.sendFoodRequestApprovedEmail(
+                            requesterUser,
+                            listing.getTitle(),
+                            listing.getBusiness().getBusinessName(),
+                            pickupWindow,
+                            request.getId()
+                    );
+                } catch (Exception e) {
+                    log.warn("Failed to dispatch food request approved email: {}", e.getMessage());
+                }
+            }
+
         } else if ("REJECT".equals(decision)) {
             request.setStatus(FoodRequestStatus.REJECTED);
             if (decisionDto.getReason() != null && !decisionDto.getReason().trim().isEmpty()) {
