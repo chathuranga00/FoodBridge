@@ -126,11 +126,20 @@ export default function Home() {
             </p>
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Button
+                size="lg"
+                variant="primary"
+                style={{ backgroundColor: '#ffffff', color: '#064e3b', fontWeight: 700 }}
+                onClick={() => navigate('/explore')}
+                icon={<MapPin size={18} />}
+              >
+                Explore Island Map
+              </Button>
               {isAuthenticated ? (
                 <Button
                   size="lg"
-                  variant="primary"
-                  style={{ backgroundColor: '#ffffff', color: '#064e3b', fontWeight: 700 }}
+                  variant="outline"
+                  style={{ color: '#ffffff', borderColor: '#ffffff' }}
                   onClick={() => navigate(dashboardPath)}
                   icon={<ArrowRight size={18} />}
                 >
@@ -140,8 +149,8 @@ export default function Home() {
                 <>
                   <Button
                     size="lg"
-                    variant="primary"
-                    style={{ backgroundColor: '#ffffff', color: '#064e3b', fontWeight: 700 }}
+                    variant="outline"
+                    style={{ color: '#ffffff', borderColor: '#ffffff' }}
                     onClick={() => navigate('/register')}
                     icon={<ArrowRight size={18} />}
                   >
@@ -153,7 +162,7 @@ export default function Home() {
                     style={{ color: '#ffffff', borderColor: '#ffffff' }}
                     onClick={() => navigate('/how-it-works')}
                   >
-                    Learn How It Works
+                    How It Works
                   </Button>
                 </>
               )}

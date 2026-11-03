@@ -205,4 +205,11 @@ export const partnershipApi = {
   getAdminPartnerships: (params) => apiClient.get('/partnerships/admin', { params }),
 }
 
+// Explore Map API (OpenStreetMap & Leaflet)
+export const mapApi = {
+  getExploreMarkers: (params) => apiClient.get('/map/explore', { params }),
+  getMapPins: (params) => apiClient.get('/map/pins', { params }),
+}
+
+
 

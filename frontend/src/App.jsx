@@ -17,6 +17,7 @@ import Register from './pages/public/Register'
 import BrowseGroceryOffers from './pages/public/BrowseGroceryOffers'
 import BrowseCampaigns from './pages/public/BrowseCampaigns'
 import CampaignDetail from './pages/public/CampaignDetail'
+import ExploreMap from './pages/public/ExploreMap'
 
 // Dashboard Shells
 import UserDashboard from './pages/dashboards/UserDashboard'
@@ -34,6 +35,8 @@ export default function App() {
             {/* Public Layout Routes */}
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Home />} />
+              <Route path="/explore" element={<ExploreMap />} />
+              <Route path="/map" element={<ExploreMap />} />
               <Route path="/grocery-offers" element={<BrowseGroceryOffers />} />
               <Route path="/campaigns" element={<BrowseCampaigns />} />
               <Route path="/campaigns/:id" element={<CampaignDetail />} />

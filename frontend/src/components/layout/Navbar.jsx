@@ -12,6 +12,7 @@ export default function Navbar() {
 
   const navLinks = [
     { label: 'Home', path: '/' },
+    { label: 'Explore Map', path: '/explore' },
     { label: 'Grocery Deals', path: '/grocery-offers' },
     { label: 'Campaigns', path: '/campaigns' },
     { label: 'About', path: '/about' },
