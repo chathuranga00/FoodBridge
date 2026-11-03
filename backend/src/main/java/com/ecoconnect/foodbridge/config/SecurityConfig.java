@@ -89,6 +89,8 @@ public class SecurityConfig {
                     "/api/auth/refresh",
                     "/api/public/**"
                 ).permitAll()
+                // Public browse for grocery discount offers
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/grocery/offers", "/api/grocery/offers/*").permitAll()
                 // Current authenticated user profile
                 .requestMatchers("/api/auth/me").authenticated()
                 // Local dev H2 console

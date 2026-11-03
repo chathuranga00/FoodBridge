@@ -14,6 +14,7 @@ import HowItWorks from './pages/public/HowItWorks'
 import Contact from './pages/public/Contact'
 import Login from './pages/public/Login'
 import Register from './pages/public/Register'
+import BrowseGroceryOffers from './pages/public/BrowseGroceryOffers'
 
 // Dashboard Shells
 import UserDashboard from './pages/dashboards/UserDashboard'
@@ -31,6 +32,7 @@ export default function App() {
             {/* Public Layout Routes */}
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Home />} />
+              <Route path="/grocery-offers" element={<BrowseGroceryOffers />} />
               <Route path="/about" element={<About />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/contact" element={<Contact />} />

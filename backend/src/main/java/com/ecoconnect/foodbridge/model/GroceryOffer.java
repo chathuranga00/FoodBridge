@@ -38,6 +38,12 @@ public class GroceryOffer extends BaseEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "category", length = 100)
+    private String category;
+
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
     @NotNull
     @Column(name = "original_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal originalPrice;
@@ -56,9 +62,29 @@ public class GroceryOffer extends BaseEntity {
     @Column(name = "available_quantity", nullable = false)
     private Integer availableQuantity;
 
+    /**
+     * Best-Before date indicates quality peak, not safe-consumption expiry.
+     * Distinct from Use-By date.
+     */
+    @Column(name = "best_before_date")
+    private OffsetDateTime bestBeforeDate;
+
     @NotNull
     @Column(name = "expiry_date", nullable = false)
     private OffsetDateTime expiryDate;
+
+    @Column(name = "pickup_start")
+    private OffsetDateTime pickupStart;
+
+    @Column(name = "pickup_end")
+    private OffsetDateTime pickupEnd;
+
+    @Column(name = "pickup_address")
+    private String pickupAddress;
+
+    @Builder.Default
+    @Column(name = "safety_confirmed", nullable = false)
+    private Boolean safetyConfirmed = false;
 
     @NotNull
     @Builder.Default
@@ -66,4 +92,3 @@ public class GroceryOffer extends BaseEntity {
     @Column(name = "status", nullable = false, length = 30)
     private GroceryOfferStatus status = GroceryOfferStatus.AVAILABLE;
 }
-

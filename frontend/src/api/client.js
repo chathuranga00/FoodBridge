@@ -151,3 +151,17 @@ export const foodRescueApi = {
   markCollected: (id, params = {}) => apiClient.post(`/food-rescue/requests/${id}/collect`, null, { params }),
 }
 
+// Grocery Discount & Coupon API
+export const groceryApi = {
+  createOffer: (data) => apiClient.post('/grocery/offers', data),
+  getPublicOffers: (params) => apiClient.get('/grocery/offers', { params }),
+  getMyOffers: () => apiClient.get('/grocery/offers/my'),
+  getOfferById: (id) => apiClient.get(`/grocery/offers/${id}`),
+  reserveOffer: (offerId, data) => apiClient.post(`/grocery/offers/${offerId}/reserve`, data),
+  getMyReservations: () => apiClient.get('/grocery/reservations/my'),
+  cancelReservation: (reservationId) => apiClient.post(`/grocery/reservations/${reservationId}/cancel`),
+  verifyRedemptionCode: (data) => apiClient.post('/grocery/redemptions/verify', data),
+  confirmRedemption: (data) => apiClient.post('/grocery/redemptions/confirm', data),
+  getBusinessRedemptions: () => apiClient.get('/grocery/redemptions/business'),
+}
+

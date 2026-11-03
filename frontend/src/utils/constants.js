@@ -36,3 +36,18 @@ export const FOOD_SUITABILITY_TYPES = [
   { value: 'ANIMAL_FEED', label: 'Animal Feed Only (Shelters & Welfare)' },
 ]
 
+export const GROCERY_CATEGORIES = [
+  'All',
+  'Dairy & Eggs',
+  'Bakery & Bread',
+  'Fresh Produce & Fruits',
+  'Pantry & Staples',
+  'Beverages & Tea',
+  'Meat & Seafood',
+  'Snacks & Confectionery',
+  'Canned & Packaged Goods',
+  'Frozen Foods',
+  'Other Groceries',
+]
+
+
