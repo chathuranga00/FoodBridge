@@ -1,0 +1,179 @@
+openapi: 3.0.3
+info:
+  title: FoodBridge REST API
+  description: |
+    Community Sustainability & Food Rescue Platform for Sri Lanka.
+    Developed by Team EcoConnect.
+    
+    Non-negotiable platform rules:
+    - Rule 1: Role-Based Access Control (RBAC) on every endpoint
+    - Rule 2: Admin-verified publishers before listing food or campaigns
+    - Rule 3: Campaign approval gate before going public
+    - Rule 4: Verified and completed impact metrics only
+    - Rule 5: Zero direct payment processing (financial segregation)
+    - Rule 6: Beneficiary privacy protection
+    - Rule 7: Separation of human food vs. animal feed suitability
+    - Rule 8: Financial segregation of charity contributions vs. business SaaS revenue
+  version: 1.0.0
+  contact:
+    name: Team EcoConnect
+    email: contact@ecoconnect.lk
+    url: https://foodbridge.lk
+servers:
+  - url: http://localhost:8080/api
+    description: Local Development Server
+  - url: https://foodbridge-backend.onrender.com/api
+    description: Production Server on Render
+
+paths:
+  /health:
+    get:
+      summary: System health check
+      responses:
+        '200':
+          description: Service is healthy and operational
+          content:
+            application/json:
+              example:
+                status: UP
+                application: FoodBridge REST API
+                version: 1.0.0
+
+  /auth/register:
+    post:
+      summary: Register new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, fullName, role]
+              properties:
+                email: { type: string, format: email, example: "volunteer@foodbridge.lk" }
+                password: { type: string, example: "Demo@FoodBridge2026!" }
+                fullName: { type: string, example: "Kasun Senanayake" }
+                phoneNumber: { type: string, example: "+94771234567" }
+                role: { type: string, enum: [ADMIN, RESTAURANT, GROCERY, CHARITY, ANIMAL_ORG, USER] }
+      responses:
+        '201':
+          description: User registered successfully, returns JWT pair
+        '400':
+          description: Validation error or duplicate email
+
+  /auth/login:
+    post:
+      summary: Authenticate user credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: "admin@foodbridge.lk" }
+                password: { type: string, example: "Admin@FoodBridge2026" }
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid credentials
+        '429':
+          description: Rate limit exceeded (10 attempts / min)
+
+  /food-rescue/listings:
+    post:
+      summary: Create surplus food listing (Verified Restaurants & Groceries)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, foodCategory, suitabilityType, quantity, unit, expiryDate, pickupStart, pickupEnd, pickupAddress, latitude, longitude]
+              properties:
+                title: { type: string, example: "Surplus Rice & Curry Buffet Trays" }
+                foodCategory: { type: string, example: "Cooked Meals" }
+                suitabilityType: { type: string, enum: [HUMAN_CONSUMPTION, ANIMAL_FEED] }
+                animalSuitable: { type: boolean, example: false }
+                quantity: { type: number, example: 25.0 }
+                unit: { type: string, example: "kg" }
+                pickupAddress: { type: string, example: "12 Dalada Veediya, Kandy" }
+                latitude: { type: number, example: 7.2906 }
+                longitude: { type: number, example: 80.6337 }
+      responses:
+        '201':
+          description: Listing created
+
+  /grocery/offers:
+    get:
+      summary: Public browse for discounted groceries
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of active grocery offers
+
+  /campaigns:
+    get:
+      summary: Public browse for active community campaigns
+      responses:
+        '200':
+          description: List of approved community relief campaigns
+
+  /map/pins:
+    get:
+      summary: Aggregated pins for interactive map
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string, example: "ALL" }
+        - name: district
+          in: query
+          schema: { type: string, example: "Kandy" }
+      responses:
+        '200':
+          description: Geo-pins array
+
+  /impact/summary:
+    get:
+      summary: Verified platform impact summary metrics
+      responses:
+        '200':
+          description: Total food rescued, meals served, CO2e savings, and beneficiaries
+
+  /upload:
+    post:
+      summary: Upload file to Supabase Storage CDN
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                category: { type: string, example: "campaigns" }
+      responses:
+        '200':
+          description: File uploaded, returns CDN URL
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer authentication token
+
