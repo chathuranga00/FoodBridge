@@ -138,3 +138,4 @@ public class AnimalWelfareController {
         return ResponseEntity.ok(animalWelfareService.getAvailableAnimalFeedListings());
     }
 }
+

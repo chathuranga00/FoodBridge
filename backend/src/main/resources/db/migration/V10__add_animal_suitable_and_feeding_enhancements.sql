@@ -33,3 +33,4 @@ CREATE TABLE animal_feed_requirements (
 
 CREATE INDEX idx_feed_req_org_id ON animal_feed_requirements(animal_org_id);
 CREATE INDEX idx_feed_req_active ON animal_feed_requirements(is_active);
+

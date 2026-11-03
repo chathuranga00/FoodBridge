@@ -311,3 +311,4 @@ public class AnimalWelfareService {
         ).stream().map(FoodListingResponse::fromEntity).toList();
     }
 }
+

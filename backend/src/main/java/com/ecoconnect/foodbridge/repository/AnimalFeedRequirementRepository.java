@@ -16,3 +16,4 @@ public interface AnimalFeedRequirementRepository extends JpaRepository<AnimalFee
 
     List<AnimalFeedRequirement> findByAnimalOrgDistrictAndIsActiveTrueOrderByCreatedAtDesc(String district);
 }
+
