@@ -39,3 +39,4 @@ public interface VolunteerParticipationRepository extends JpaRepository<Voluntee
     @Query("SELECT COALESCE(SUM(vp.hoursVolunteered), 0) FROM VolunteerParticipation vp WHERE vp.opportunity.charity.id = :charityId AND vp.status = :status")
     BigDecimal sumHoursVolunteeredByCharityIdAndStatus(@Param("charityId") UUID charityId, @Param("status") ParticipationStatus status);
 }
+

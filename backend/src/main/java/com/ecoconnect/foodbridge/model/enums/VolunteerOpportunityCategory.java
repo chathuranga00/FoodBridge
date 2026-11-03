@@ -6,3 +6,4 @@ public enum VolunteerOpportunityCategory {
     ENVIRONMENTAL,
     ANIMAL_WELFARE
 }
+

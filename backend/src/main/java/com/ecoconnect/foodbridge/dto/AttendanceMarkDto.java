@@ -22,3 +22,4 @@ public class AttendanceMarkDto {
 
     private String attendanceNotes;
 }
+

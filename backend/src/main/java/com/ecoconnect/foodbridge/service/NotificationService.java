@@ -60,3 +60,4 @@ public class NotificationService {
         notificationRepository.markAllAsReadByUserId(user.getId());
     }
 }
+

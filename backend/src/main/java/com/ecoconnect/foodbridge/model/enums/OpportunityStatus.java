@@ -5,3 +5,4 @@ public enum OpportunityStatus {
     COMPLETED,
     CANCELLED
 }
+

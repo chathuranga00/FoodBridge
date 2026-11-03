@@ -59,3 +59,4 @@ public class VolunteerParticipation extends BaseEntity {
     @Column(name = "attended_at")
     private OffsetDateTime attendedAt;
 }
+

@@ -22,3 +22,4 @@ public interface VolunteerOpportunityRepository extends JpaRepository<VolunteerO
 
     List<VolunteerOpportunity> findByCharityIdOrderByCreatedAtDesc(UUID charityId);
 }
+

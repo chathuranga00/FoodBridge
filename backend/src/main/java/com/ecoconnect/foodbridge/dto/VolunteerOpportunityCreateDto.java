@@ -49,3 +49,4 @@ public class VolunteerOpportunityCreateDto {
     private String contactEmail;
     private String contactPhone;
 }
+

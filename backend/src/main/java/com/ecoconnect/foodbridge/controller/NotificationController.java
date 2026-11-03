@@ -50,3 +50,4 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("success", true, "message", "All notifications marked as read"));
     }
 }
+

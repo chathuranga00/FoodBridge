@@ -126,3 +126,4 @@ public class VolunteerOpportunity extends BaseEntity {
     @Column(name = "contact_phone")
     private String contactPhone;
 }
+

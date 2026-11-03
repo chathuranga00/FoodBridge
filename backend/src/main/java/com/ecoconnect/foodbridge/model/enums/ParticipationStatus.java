@@ -6,3 +6,4 @@ public enum ParticipationStatus {
     NO_SHOW,
     CANCELLED
 }
+
