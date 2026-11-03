@@ -7,3 +7,4 @@ public enum CampaignNeedType {
     SCHOOL_SUPPLIES,
     FAMILY_ESSENTIALS
 }
+

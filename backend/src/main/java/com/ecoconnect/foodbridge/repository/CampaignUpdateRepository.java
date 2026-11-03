@@ -12,3 +12,4 @@ public interface CampaignUpdateRepository extends JpaRepository<CampaignUpdate, 
 
     List<CampaignUpdate> findByCampaignIdOrderByDistributionDateDesc(UUID campaignId);
 }
+

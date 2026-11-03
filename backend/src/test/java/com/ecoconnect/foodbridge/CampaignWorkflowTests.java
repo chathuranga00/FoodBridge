@@ -386,3 +386,4 @@ class CampaignWorkflowTests {
                 .andExpect(jsonPath("$.progressPercentage", is(15)));
     }
 }
+

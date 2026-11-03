@@ -48,3 +48,4 @@ public class CampaignUpdate extends BaseEntity {
     @Column(name = "distribution_date", nullable = false)
     private LocalDate distributionDate;
 }
+

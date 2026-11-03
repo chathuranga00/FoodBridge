@@ -58,3 +58,4 @@ public class CampaignCreateRequest {
 
     private Integer targetBeneficiariesCount;
 }
+

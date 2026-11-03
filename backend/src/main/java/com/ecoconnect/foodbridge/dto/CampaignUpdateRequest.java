@@ -32,3 +32,4 @@ public class CampaignUpdateRequest {
     @NotNull(message = "Distribution date is required")
     private LocalDate distributionDate;
 }
+

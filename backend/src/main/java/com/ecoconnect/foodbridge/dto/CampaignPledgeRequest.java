@@ -21,3 +21,4 @@ public class CampaignPledgeRequest {
 
     private String notes;
 }
+

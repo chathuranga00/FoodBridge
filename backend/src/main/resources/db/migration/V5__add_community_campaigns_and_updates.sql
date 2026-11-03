@@ -28,3 +28,4 @@ CREATE TABLE campaign_updates (
 
 CREATE INDEX idx_campaign_updates_campaign_id ON campaign_updates(campaign_id);
 CREATE INDEX idx_campaign_updates_date ON campaign_updates(distribution_date);
+
