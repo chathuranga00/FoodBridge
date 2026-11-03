@@ -7,6 +7,12 @@ spring:
   application:
     name: foodbridge-backend
 
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5MB
+      max-request-size: 10MB
+
   datasource:
     # Supabase PostgreSQL JDBC connection string
     # e.g., jdbc:postgresql://db.xxxx.supabase.co:5432/postgres?sslmode=require

@@ -3,9 +3,11 @@ package com.ecoconnect.foodbridge.config;
 import com.ecoconnect.foodbridge.security.JwtAccessDeniedHandler;
 import com.ecoconnect.foodbridge.security.JwtAuthenticationEntryPoint;
 import com.ecoconnect.foodbridge.security.JwtAuthenticationFilter;
+import com.ecoconnect.foodbridge.security.RateLimitingFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,6 +19,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
@@ -34,15 +37,18 @@ public class SecurityConfig {
 
     private final CorsConfigurationSource corsConfigurationSource;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitingFilter rateLimitingFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     public SecurityConfig(CorsConfigurationSource corsConfigurationSource,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
+                          RateLimitingFilter rateLimitingFilter,
                           JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
                           JwtAccessDeniedHandler jwtAccessDeniedHandler) {
         this.corsConfigurationSource = corsConfigurationSource;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.rateLimitingFilter = rateLimitingFilter;
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
         this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
     }
@@ -75,8 +81,19 @@ public class SecurityConfig {
             // Stateless session management
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            // Frame options disabled for H2 console development
-            .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
+            // Hardened security headers
+            .headers(headers -> headers
+                .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
+                .contentTypeOptions(Customizer.withDefaults())
+                .xssProtection(Customizer.withDefaults())
+                .httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000)
+                )
+                .referrerPolicy(referrer -> referrer
+                    .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
+                )
+            )
 
             // Endpoint authorization
             .authorizeHttpRequests(auth -> auth
@@ -111,6 +128,8 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
 
+            // Add rate limiting filter for auth endpoints
+            .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
             // Add JWT filter
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -15,3 +15,9 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
 
+foodbridge:
+  security:
+    rate-limiting:
+      enabled: true
+      max-requests-per-minute: 10000
+
