@@ -18,6 +18,7 @@ import BrowseGroceryOffers from './pages/public/BrowseGroceryOffers'
 import BrowseCampaigns from './pages/public/BrowseCampaigns'
 import CampaignDetail from './pages/public/CampaignDetail'
 import ExploreMap from './pages/public/ExploreMap'
+import PublicImpact from './pages/public/PublicImpact'
 
 // Dashboard Shells
 import UserDashboard from './pages/dashboards/UserDashboard'
@@ -37,6 +38,7 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/explore" element={<ExploreMap />} />
               <Route path="/map" element={<ExploreMap />} />
+              <Route path="/impact" element={<PublicImpact />} />
               <Route path="/grocery-offers" element={<BrowseGroceryOffers />} />
               <Route path="/campaigns" element={<BrowseCampaigns />} />
               <Route path="/campaigns/:id" element={<CampaignDetail />} />

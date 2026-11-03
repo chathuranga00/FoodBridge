@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,5 +29,9 @@ public interface ImpactRecordRepository extends JpaRepository<ImpactRecord, UUID
 
     @Query("SELECT COALESCE(SUM(i.animalsFed), 0) FROM ImpactRecord i")
     Long sumTotalAnimalsFed();
+
+    List<ImpactRecord> findByCalculatedAtBetween(java.time.OffsetDateTime start, java.time.OffsetDateTime end);
+
+    List<ImpactRecord> findAllByOrderByCalculatedAtDesc();
 }
 

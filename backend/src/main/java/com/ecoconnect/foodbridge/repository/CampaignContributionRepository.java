@@ -20,6 +20,10 @@ public interface CampaignContributionRepository extends JpaRepository<CampaignCo
 
     List<CampaignContribution> findByCampaignIdAndStatus(UUID campaignId, ContributionStatus status);
 
+    List<CampaignContribution> findByStatus(ContributionStatus status);
+
+    List<CampaignContribution> findByCampaignCharityIdAndStatus(UUID charityId, ContributionStatus status);
+
     List<CampaignContribution> findByContributorUserIdOrderByCreatedAtDesc(UUID userId);
 
     @Query("SELECT c FROM CampaignContribution c WHERE (c.campaign.charity IS NOT NULL AND c.campaign.charity.user.id = :userId) ORDER BY c.createdAt DESC")

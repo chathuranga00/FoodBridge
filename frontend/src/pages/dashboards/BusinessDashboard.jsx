@@ -47,7 +47,8 @@ import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
 import PartnershipTimeline from '../../components/common/PartnershipTimeline'
 import PartnershipMessageThread from '../../components/common/PartnershipMessageThread'
-import { profileApi, foodListingApi, foodRescueApi, groceryApi, contributionApi, partnershipApi, campaignApi } from '../../api/client'
+import { profileApi, foodListingApi, foodRescueApi, groceryApi, contributionApi, partnershipApi, campaignApi, impactApi } from '../../api/client'
+import ImpactAnalyticsView from '../../components/impact/ImpactAnalyticsView'
 import { SRI_LANKA_DISTRICTS, BUSINESS_TYPES, GROCERY_CATEGORIES } from '../../utils/constants'
 
 export default function BusinessDashboard() {
@@ -118,6 +119,12 @@ export default function BusinessDashboard() {
   const [verifyingCode, setVerifyingCode] = useState(false)
   const [verifiedReservation, setVerifiedReservation] = useState(null)
   const [confirmingRedemption, setConfirmingRedemption] = useState(false)
+
+  // Impact & Sustainability State
+  const [businessImpact, setBusinessImpact] = useState(null)
+  const [loadingBusinessImpact, setLoadingBusinessImpact] = useState(false)
+  const [impactStart, setImpactStart] = useState(null)
+  const [impactEnd, setImpactEnd] = useState(null)
 
   // Modal States
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
@@ -275,6 +282,21 @@ export default function BusinessDashboard() {
       setActiveCampaigns(res.data || [])
     } catch (err) {
       console.error('Error fetching active campaigns', err)
+    }
+  }
+
+  const loadBusinessImpact = async (start = impactStart, end = impactEnd) => {
+    try {
+      setLoadingBusinessImpact(true)
+      const params = {}
+      if (start) params.startDate = start
+      if (end) params.endDate = end
+      const res = await impactApi.getMyImpact(params)
+      setBusinessImpact(res.data)
+    } catch (err) {
+      console.error('Error fetching business impact', err)
+    } finally {
+      setLoadingBusinessImpact(false)
     }
   }
 
@@ -1700,6 +1722,29 @@ export default function BusinessDashboard() {
             </span>
           )}
         </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('impact')
+            loadBusinessImpact()
+          }}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'impact' ? '3px solid var(--color-primary)' : '3px solid transparent',
+            color: activeTab === 'impact' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <TrendingUp size={18} />
+          Impact & Sustainability
+        </button>
       </div>
 
       {/* Tab: Grocery Offers */}
@@ -2043,6 +2088,27 @@ export default function BusinessDashboard() {
             )}
           </Card>
         </div>
+      )}
+
+      {/* Tab: Verified Impact & Sustainability */}
+      {activeTab === 'impact' && (
+        <ImpactAnalyticsView
+          data={businessImpact}
+          loading={loadingBusinessImpact}
+          isOrganization={true}
+          title={`${profile?.businessName || 'Business'} Sustainability & ESG Report`}
+          subtitle="Audit-verified metrics for food waste prevented, near-expiry products rescued, carbon emissions avoided, and completed rural community relief sponsorships."
+          onDateRangeChange={(start, end) => {
+            setImpactStart(start)
+            setImpactEnd(end)
+            loadBusinessImpact(start, end)
+          }}
+          onExportCsv={() => {
+            if (profile?.id) {
+              window.location.href = impactApi.getExportCsvUrl(profile.id, impactStart, impactEnd)
+            }
+          }}
+        />
       )}
 
       {/* Modal: Agreed Payment & Handover Instructions */}

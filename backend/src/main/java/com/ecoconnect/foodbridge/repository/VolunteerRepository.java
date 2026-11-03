@@ -19,6 +19,8 @@ public interface VolunteerRepository extends JpaRepository<Volunteer, UUID> {
 
     List<Volunteer> findByVerificationStatus(VerificationStatus verificationStatus);
 
+    long countByVerificationStatus(VerificationStatus verificationStatus);
+
     List<Volunteer> findByAvailabilityStatusAndVerificationStatus(VolunteerAvailability availabilityStatus, VerificationStatus verificationStatus);
 }
 

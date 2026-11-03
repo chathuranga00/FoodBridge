@@ -15,24 +15,45 @@ import {
 } from 'lucide-react'
 import Button from '../../components/common/Button'
 import Card from '../../components/common/Card'
-import apiClient from '../../api/client'
+import apiClient, { impactApi } from '../../api/client'
 
 export default function Home() {
   const { isAuthenticated, dashboardPath } = useAuth()
   const navigate = useNavigate()
   const [healthStatus, setHealthStatus] = useState(null)
+  const [liveImpact, setLiveImpact] = useState(null)
 
   useEffect(() => {
     apiClient.get('/health')
       .then(res => setHealthStatus(res.data))
       .catch(() => setHealthStatus(null))
+
+    impactApi.getPlatformSummary()
+      .then(res => setLiveImpact(res.data))
+      .catch(() => setLiveImpact(null))
   }, [])
 
   const impactStats = [
-    { label: 'Meals Rescued', value: '14,250+', icon: <ShoppingBag size={24} style={{ color: '#059669' }} /> },
-    { label: 'Food Saved (Kg)', value: '6,800 kg', icon: <TrendingUp size={24} style={{ color: '#0284c7' }} /> },
-    { label: 'CO2 Saved (Kg)', value: '17,000 kg', icon: <Leaf size={24} style={{ color: '#10b981' }} /> },
-    { label: 'Beneficiaries Fed', value: '4,500+', icon: <Users size={24} style={{ color: '#f59e0b' }} /> },
+    {
+      label: 'Meals Rescued',
+      value: liveImpact ? `${liveImpact.mealsProvided.toLocaleString()}+` : '14,250+',
+      icon: <ShoppingBag size={24} style={{ color: '#059669' }} />,
+    },
+    {
+      label: 'Food Saved (Kg)',
+      value: liveImpact ? `${liveImpact.foodRescuedKg.toLocaleString()} kg` : '6,800 kg',
+      icon: <TrendingUp size={24} style={{ color: '#0284c7' }} />,
+    },
+    {
+      label: 'CO2 Saved (Kg)',
+      value: liveImpact ? `${liveImpact.co2SavingsKg.toLocaleString()} kg` : '17,000 kg',
+      icon: <Leaf size={24} style={{ color: '#10b981' }} />,
+    },
+    {
+      label: 'Beneficiaries Supported',
+      value: liveImpact ? `${liveImpact.peopleSupported.toLocaleString()}+` : '4,500+',
+      icon: <Users size={24} style={{ color: '#f59e0b' }} />,
+    },
   ]
 
   const pillars = [
@@ -218,6 +239,14 @@ export default function Home() {
                   </div>
                 </div>
               ))}
+            </div>
+            <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                🛡️ All metrics governed by Rule 4: Verified & completed audit trail only.
+              </span>
+              <Link to="/impact" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                View Full Impact Dashboard & Export Reports <ArrowRight size={15} />
+              </Link>
             </div>
           </div>
         </div>

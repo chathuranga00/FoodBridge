@@ -19,6 +19,8 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
 
     List<Business> findByVerificationStatus(VerificationStatus status);
 
+    long countByVerificationStatus(VerificationStatus status);
+
     List<Business> findByBusinessTypeAndVerificationStatus(BusinessType businessType, VerificationStatus status);
 
     List<Business> findByDistrictAndVerificationStatus(String district, VerificationStatus status);

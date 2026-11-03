@@ -35,6 +35,7 @@ import {
   RotateCcw,
   Check,
   Truck,
+  TrendingUp,
 } from 'lucide-react'
 import Card from '../../components/common/Card'
 import Button from '../../components/common/Button'
@@ -46,7 +47,8 @@ import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
 import PartnershipTimeline from '../../components/common/PartnershipTimeline'
 import PartnershipMessageThread from '../../components/common/PartnershipMessageThread'
-import { profileApi, foodListingApi, foodRescueApi, campaignApi, contributionApi, partnershipApi } from '../../api/client'
+import { profileApi, foodListingApi, foodRescueApi, campaignApi, contributionApi, partnershipApi, impactApi } from '../../api/client'
+import ImpactAnalyticsView from '../../components/impact/ImpactAnalyticsView'
 import { SRI_LANKA_DISTRICTS, CAMPAIGN_NEED_TYPES } from '../../utils/constants'
 
 export default function CharityDashboard() {
@@ -111,6 +113,12 @@ export default function CharityDashboard() {
   const [contributionStatusFilter, setContributionStatusFilter] = useState('ALL')
   const [selectedContributionForConfirm, setSelectedContributionForConfirm] = useState(null)
   const [confirmNotes, setConfirmNotes] = useState('')
+
+  // Impact & Relief State
+  const [charityImpact, setCharityImpact] = useState(null)
+  const [loadingCharityImpact, setLoadingCharityImpact] = useState(false)
+  const [impactStart, setImpactStart] = useState(null)
+  const [impactEnd, setImpactEnd] = useState(null)
   const [submittingConfirm, setSubmittingConfirm] = useState(false)
   const [selectedContributionForDistribute, setSelectedContributionForDistribute] = useState(null)
   const [distributeForm, setDistributeForm] = useState({
@@ -231,6 +239,21 @@ export default function CharityDashboard() {
       console.error('Error fetching charity contributions', err)
     } finally {
       setLoadingContributions(false)
+    }
+  }
+
+  const loadCharityImpact = async (start = impactStart, end = impactEnd) => {
+    try {
+      setLoadingCharityImpact(true)
+      const params = {}
+      if (start) params.startDate = start
+      if (end) params.endDate = end
+      const res = await impactApi.getMyImpact(params)
+      setCharityImpact(res.data)
+    } catch (err) {
+      console.error('Error fetching charity impact', err)
+    } finally {
+      setLoadingCharityImpact(false)
     }
   }
 
@@ -1268,6 +1291,29 @@ export default function CharityDashboard() {
             </span>
           )}
         </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('impact')
+            loadCharityImpact()
+          }}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'impact' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
+            color: activeTab === 'impact' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <TrendingUp size={18} />
+          Impact & Relief Report
+        </button>
       </div>
 
       {/* Tab 1: Browse Available Food */}
@@ -1851,6 +1897,27 @@ export default function CharityDashboard() {
             )}
           </Card>
         </div>
+      )}
+
+      {/* Tab: Verified Impact & Relief Report */}
+      {activeTab === 'impact' && (
+        <ImpactAnalyticsView
+          data={charityImpact}
+          loading={loadingCharityImpact}
+          isOrganization={true}
+          title={`${profile?.charityName || 'Charity'} Humanitarian Impact Ledger`}
+          subtitle="Audit-verified metrics for edible food claimed, meals distributed, rural campaigns delivered, and community members supported across Sri Lanka."
+          onDateRangeChange={(start, end) => {
+            setImpactStart(start)
+            setImpactEnd(end)
+            loadCharityImpact(start, end)
+          }}
+          onExportCsv={() => {
+            if (profile?.id) {
+              window.location.href = impactApi.getExportCsvUrl(profile.id, impactStart, impactEnd)
+            }
+          }}
+        />
       )}
 
       {/* Modal: Send Food Rescue Request */}

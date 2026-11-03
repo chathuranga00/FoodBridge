@@ -211,5 +211,22 @@ export const mapApi = {
   getMapPins: (params) => apiClient.get('/map/pins', { params }),
 }
 
+// Impact Statistics & Transparency API
+export const impactApi = {
+  getPlatformSummary: (params) => apiClient.get('/impact/summary', { params }),
+  getPlatformStats: (params) => apiClient.get('/impact/stats', { params }),
+  getOrganizationImpact: (organizationId, params) => apiClient.get(`/impact/organization/${organizationId}`, { params }),
+  getMyImpact: (params) => apiClient.get('/impact/my', { params }),
+  getExportCsvUrl: (organizationId, startDate, endDate) => {
+    const params = new URLSearchParams()
+    if (organizationId) params.append('organizationId', organizationId)
+    if (startDate) params.append('startDate', startDate)
+    if (endDate) params.append('endDate', endDate)
+    const base = import.meta.env.VITE_API_BASE_URL || '/api'
+    return `${base}/impact/export?${params.toString()}`
+  },
+}
+
+
 
 

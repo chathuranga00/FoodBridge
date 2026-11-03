@@ -21,6 +21,10 @@ public interface GroceryReservationRepository extends JpaRepository<GroceryReser
 
     List<GroceryReservation> findByOfferId(UUID offerId);
 
+    List<GroceryReservation> findByStatus(GroceryReservationStatus status);
+
+    List<GroceryReservation> findByOfferBusinessIdAndStatus(UUID businessId, GroceryReservationStatus status);
+
     List<GroceryReservation> findByStatusAndExpiresAtBefore(GroceryReservationStatus status, OffsetDateTime dateTime);
 }
 

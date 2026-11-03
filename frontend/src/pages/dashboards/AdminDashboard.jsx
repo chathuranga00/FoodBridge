@@ -24,6 +24,7 @@ import {
   MessageSquare,
   Sparkles,
   CheckCircle2,
+  TrendingUp,
 } from 'lucide-react'
 import Card from '../../components/common/Card'
 import Button from '../../components/common/Button'
@@ -33,7 +34,8 @@ import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
 import PartnershipTimeline from '../../components/common/PartnershipTimeline'
 import PartnershipMessageThread from '../../components/common/PartnershipMessageThread'
-import { adminApi, campaignApi, partnershipApi } from '../../api/client'
+import { adminApi, campaignApi, partnershipApi, impactApi } from '../../api/client'
+import ImpactAnalyticsView from '../../components/impact/ImpactAnalyticsView'
 
 export default function AdminDashboard() {
   const { user } = useAuth()
@@ -65,6 +67,12 @@ export default function AdminDashboard() {
   const [isAdminPartnershipModalOpen, setIsAdminPartnershipModalOpen] = useState(false)
   const [adminPartnershipFilter, setAdminPartnershipFilter] = useState('ALL')
 
+  // Platform Impact State
+  const [platformImpact, setPlatformImpact] = useState(null)
+  const [loadingPlatformImpact, setLoadingPlatformImpact] = useState(false)
+  const [impactStart, setImpactStart] = useState(null)
+  const [impactEnd, setImpactEnd] = useState(null)
+
   useEffect(() => {
     loadAllData()
   }, [])
@@ -73,6 +81,21 @@ export default function AdminDashboard() {
     setLoading(true)
     await Promise.all([loadPendingVerifications(), loadPendingCampaigns(), loadPartnerships()])
     setLoading(false)
+  }
+
+  const loadPlatformImpact = async (start = impactStart, end = impactEnd) => {
+    try {
+      setLoadingPlatformImpact(true)
+      const params = {}
+      if (start) params.startDate = start
+      if (end) params.endDate = end
+      const res = await impactApi.getPlatformSummary(params)
+      setPlatformImpact(res.data)
+    } catch (err) {
+      console.error('Error fetching admin platform impact', err)
+    } finally {
+      setLoadingPlatformImpact(false)
+    }
   }
 
   const loadPartnerships = async () => {
@@ -660,6 +683,29 @@ export default function AdminDashboard() {
           <Handshake size={18} />
           CSR Partnership Monitoring ({adminPartnerships.length})
         </button>
+
+        <button
+          onClick={() => {
+            setActiveAdminTab('impact')
+            loadPlatformImpact()
+          }}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeAdminTab === 'impact' ? '3px solid var(--color-primary)' : '3px solid transparent',
+            color: activeAdminTab === 'impact' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <TrendingUp size={18} />
+          National Impact Ledger
+        </button>
       </div>
 
       {/* Tab: Organization Verification Queue (Rule 2) */}
@@ -818,6 +864,25 @@ export default function AdminDashboard() {
             )}
           </Card>
         </div>
+      )}
+
+      {/* Tab: Platform Impact & Compliance Overview */}
+      {activeAdminTab === 'impact' && (
+        <ImpactAnalyticsView
+          data={platformImpact}
+          loading={loadingPlatformImpact}
+          isOrganization={false}
+          title="National Zero-Waste & Relief Impact Audit"
+          subtitle="Real-time verified platform ledger. Enforces Rule 4 zero-estimate accounting across businesses, charities, grocery discounts, and rural campaigns."
+          onDateRangeChange={(start, end) => {
+            setImpactStart(start)
+            setImpactEnd(end)
+            loadPlatformImpact(start, end)
+          }}
+          onExportCsv={() => {
+            window.location.href = impactApi.getExportCsvUrl(null, impactStart, impactEnd)
+          }}
+        />
       )}
 
       {/* Organization Review & Document Modal */}

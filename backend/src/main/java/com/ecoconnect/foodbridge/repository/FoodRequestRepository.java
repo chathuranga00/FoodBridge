@@ -27,6 +27,12 @@ public interface FoodRequestRepository extends JpaRepository<FoodRequest, UUID> 
 
     List<FoodRequest> findByStatus(FoodRequestStatus status);
 
+    long countByStatus(FoodRequestStatus status);
+
+    List<FoodRequest> findByListingBusinessIdAndStatus(UUID businessId, FoodRequestStatus status);
+
+    List<FoodRequest> findByCharityIdAndStatus(UUID charityId, FoodRequestStatus status);
+
     List<FoodRequest> findByVolunteerId(UUID volunteerId);
 }
 
