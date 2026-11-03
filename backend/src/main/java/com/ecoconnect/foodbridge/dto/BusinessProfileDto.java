@@ -73,6 +73,8 @@ public class BusinessProfileDto {
     private VerificationStatus verificationStatus;
     private OffsetDateTime verifiedAt;
     private String verificationNotes;
+    private Boolean isFeatured;
+    private OffsetDateTime featuredUntil;
 
     public static BusinessProfileDto fromEntity(Business b) {
         if (b == null) {
@@ -98,6 +100,8 @@ public class BusinessProfileDto {
                 .verificationStatus(b.getVerificationStatus())
                 .verifiedAt(b.getVerifiedAt())
                 .verificationNotes(b.getVerificationNotes())
+                .isFeatured(b.getIsFeatured())
+                .featuredUntil(b.getFeaturedUntil())
                 .build();
     }
 }

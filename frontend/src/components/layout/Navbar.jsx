@@ -14,11 +14,11 @@ export default function Navbar() {
     { label: 'Home', path: '/' },
     { label: 'Explore Map', path: '/explore' },
     { label: 'Impact', path: '/impact' },
+    { label: 'Businesses', path: '/businesses' },
+    { label: 'Partnerships', path: '/business-partnerships' },
     { label: 'Grocery Deals', path: '/grocery-offers' },
     { label: 'Campaigns', path: '/campaigns' },
-    { label: 'About', path: '/about' },
     { label: 'How It Works', path: '/how-it-works' },
-    { label: 'Contact', path: '/contact' },
   ]
 
   const handleLogout = () => {

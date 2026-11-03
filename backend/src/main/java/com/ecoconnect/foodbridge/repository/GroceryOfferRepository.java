@@ -17,6 +17,8 @@ public interface GroceryOfferRepository extends JpaRepository<GroceryOffer, UUID
 
     List<GroceryOffer> findByBusinessId(UUID businessId);
 
+    List<GroceryOffer> findByBusinessIdAndStatus(UUID businessId, GroceryOfferStatus status);
+
     List<GroceryOffer> findByBusinessIdOrderByCreatedAtDesc(UUID businessId);
 
     List<GroceryOffer> findByStatus(GroceryOfferStatus status);

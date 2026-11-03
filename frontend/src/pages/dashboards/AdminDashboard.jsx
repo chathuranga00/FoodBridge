@@ -23,6 +23,7 @@ import {
   Lock,
   MessageSquare,
   Sparkles,
+  Star,
   CheckCircle2,
   TrendingUp,
 } from 'lucide-react'
@@ -34,7 +35,7 @@ import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
 import PartnershipTimeline from '../../components/common/PartnershipTimeline'
 import PartnershipMessageThread from '../../components/common/PartnershipMessageThread'
-import { adminApi, campaignApi, partnershipApi, impactApi } from '../../api/client'
+import { adminApi, campaignApi, partnershipApi, impactApi, promotionApi } from '../../api/client'
 import ImpactAnalyticsView from '../../components/impact/ImpactAnalyticsView'
 
 export default function AdminDashboard() {
@@ -73,6 +74,11 @@ export default function AdminDashboard() {
   const [impactStart, setImpactStart] = useState(null)
   const [impactEnd, setImpactEnd] = useState(null)
 
+  // Promotions & Featured Partners State
+  const [adminPromotions, setAdminPromotions] = useState([])
+  const [adminBusinesses, setAdminBusinesses] = useState([])
+  const [loadingAdminPromos, setLoadingAdminPromos] = useState(false)
+
   useEffect(() => {
     loadAllData()
   }, [])
@@ -95,6 +101,43 @@ export default function AdminDashboard() {
       console.error('Error fetching admin platform impact', err)
     } finally {
       setLoadingPlatformImpact(false)
+    }
+  }
+
+  const loadPromotionsAndBusinesses = async () => {
+    try {
+      setLoadingAdminPromos(true)
+      const [promosRes, businessesRes] = await Promise.all([
+        promotionApi.getAllPromotions(),
+        promotionApi.getAllBusinesses(),
+      ])
+      setAdminPromotions(promosRes.data || [])
+      setAdminBusinesses(businessesRes.data || [])
+    } catch (err) {
+      console.error('Error fetching admin promotions or businesses', err)
+      showToast('Could not load promotions or business directory', 'error')
+    } finally {
+      setLoadingAdminPromos(false)
+    }
+  }
+
+  const handleToggleBusinessFeatured = async (businessId, currentFeatured) => {
+    try {
+      await promotionApi.toggleBusinessFeatured(businessId, !currentFeatured)
+      showToast(currentFeatured ? 'Business profile unfeatured' : 'Business profile is now featured!', 'success')
+      loadPromotionsAndBusinesses()
+    } catch (err) {
+      showToast('Failed to toggle featured status', 'error')
+    }
+  }
+
+  const handleTogglePromotionFeatured = async (promoId, currentFeatured) => {
+    try {
+      await promotionApi.togglePromotionFeatured(promoId, !currentFeatured)
+      showToast(currentFeatured ? 'Promotion unfeatured' : 'Promotion is now featured!', 'success')
+      loadPromotionsAndBusinesses()
+    } catch (err) {
+      showToast('Failed to toggle promotion featured status', 'error')
     }
   }
 
@@ -706,6 +749,29 @@ export default function AdminDashboard() {
           <TrendingUp size={18} />
           National Impact Ledger
         </button>
+
+        <button
+          onClick={() => {
+            setActiveAdminTab('promotions')
+            loadPromotionsAndBusinesses()
+          }}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeAdminTab === 'promotions' ? '3px solid var(--color-primary)' : '3px solid transparent',
+            color: activeAdminTab === 'promotions' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <Sparkles size={18} />
+          Promotions & Featured Partners
+        </button>
       </div>
 
       {/* Tab: Organization Verification Queue (Rule 2) */}
@@ -883,6 +949,183 @@ export default function AdminDashboard() {
             window.location.href = impactApi.getExportCsvUrl(null, impactStart, impactEnd)
           }}
         />
+      )}
+
+      {/* Tab: Promotions & Featured Partners Governance */}
+      {activeAdminTab === 'promotions' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          {/* Card 1: Business Profile Featured Placement Management */}
+          <Card
+            title="Business Directory & Featured Profile Placements"
+            subtitle="Feature verified restaurant and grocery profiles on the public directory, search highlights, and interactive map."
+            badge={<span className="badge badge-amber">{adminBusinesses.filter((b) => b.isFeatured).length} Featured</span>}
+          >
+            {loadingAdminPromos ? (
+              <Loader text="Loading partner businesses..." />
+            ) : adminBusinesses.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                No registered businesses found.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left', color: 'var(--color-text-muted)' }}>
+                      <th style={{ padding: '0.75rem 1rem' }}>Business Name</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Type</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Location</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Verification</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Featured Status</th>
+                      <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Admin Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminBusinesses.map((b) => (
+                      <tr key={b.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '1rem' }}>
+                          <div style={{ fontWeight: 700, color: 'var(--color-text)' }}>{b.businessName}</div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>Reg: {b.registrationNumber}</div>
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 600, background: '#f1f5f9', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                            {b.businessType}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem', color: 'var(--color-text-muted)' }}>
+                          {b.city}, {b.district}
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              background: b.verificationStatus === 'VERIFIED' ? '#dcfce7' : '#fef3c7',
+                              color: b.verificationStatus === 'VERIFIED' ? '#15803d' : '#b45309',
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '999px',
+                            }}
+                          >
+                            {b.verificationStatus}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          {b.isFeatured ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                background: '#fef3c7',
+                                color: '#b45309',
+                                fontSize: '0.78rem',
+                                fontWeight: 800,
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '999px',
+                                border: '1px solid #fde68a',
+                              }}
+                            >
+                              <Star size={13} fill="#f59e0b" color="#f59e0b" /> FEATURED
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Standard</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '1rem', textAlign: 'right' }}>
+                          <Button
+                            size="sm"
+                            variant={b.isFeatured ? 'outline' : 'primary'}
+                            onClick={() => handleToggleBusinessFeatured(b.id, b.isFeatured)}
+                          >
+                            {b.isFeatured ? 'Unfeature Profile' : 'Feature Profile'}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+
+          {/* Card 2: Promotional Campaigns & Ads Management */}
+          <Card
+            title="Promotional Campaigns & Ads Moderation (Rule 8 Revenue)"
+            subtitle="Monitor business promotions, analyze views, clicks, and redemptions, and feature high-impact sustainable offers."
+            badge={<span className="badge badge-sky">{adminPromotions.length} Campaigns</span>}
+          >
+            {loadingAdminPromos ? (
+              <Loader text="Loading promotions..." />
+            ) : adminPromotions.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                No active promotions published yet.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left', color: 'var(--color-text-muted)' }}>
+                      <th style={{ padding: '0.75rem 1rem' }}>Business</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Promotion</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Type</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Analytics (Views/Clicks/Redeems)</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Featured</th>
+                      <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Admin Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminPromotions.map((promo) => (
+                      <tr key={promo.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '1rem' }}>
+                          <div style={{ fontWeight: 700, color: 'var(--color-text)' }}>{promo.businessName}</div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{promo.businessDistrict}</div>
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <div style={{ fontWeight: 600 }}>{promo.title}</div>
+                          {promo.promoCode && (
+                            <span style={{ fontSize: '0.75rem', fontWeight: 800, background: '#f1f5f9', color: 'var(--color-primary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                              CODE: {promo.promoCode}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, background: '#eff6ff', color: '#1e40af', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                            {promo.promotionType}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <div style={{ fontSize: '0.82rem', display: 'flex', gap: '0.6rem' }}>
+                            <span>👁️ {promo.viewsCount || 0}</span>
+                            <span>🖱️ {promo.clicksCount || 0}</span>
+                            <span>🎁 {promo.redemptionsCount || 0}</span>
+                            <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>({promo.ctr || 0}% CTR)</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          {promo.isFeatured ? (
+                            <span style={{ background: '#fef3c7', color: '#b45309', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 800 }}>
+                              FEATURED AD
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Standard</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '1rem', textAlign: 'right' }}>
+                          <Button
+                            size="sm"
+                            variant={promo.isFeatured ? 'outline' : 'primary'}
+                            onClick={() => handleTogglePromotionFeatured(promo.id, promo.isFeatured)}
+                          >
+                            {promo.isFeatured ? 'Unfeature Ad' : 'Feature Ad'}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
       )}
 
       {/* Organization Review & Document Modal */}

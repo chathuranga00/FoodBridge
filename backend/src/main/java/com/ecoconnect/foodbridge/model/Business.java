@@ -111,5 +111,13 @@ public class Business extends BaseEntity {
 
     @Column(name = "verification_notes", columnDefinition = "TEXT")
     private String verificationNotes;
+
+    @NotNull
+    @Builder.Default
+    @Column(name = "is_featured", nullable = false)
+    private Boolean isFeatured = false;
+
+    @Column(name = "featured_until")
+    private OffsetDateTime featuredUntil;
 }
 

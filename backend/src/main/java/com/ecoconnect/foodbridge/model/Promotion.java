@@ -1,6 +1,7 @@
 package com.ecoconnect.foodbridge.model;
 
 import com.ecoconnect.foodbridge.model.enums.PaymentStatus;
+import com.ecoconnect.foodbridge.model.enums.PromotionType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -39,6 +40,15 @@ public class Promotion extends BaseEntity {
     @Column(name = "title", nullable = false)
     private String title;
 
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @NotNull
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "promotion_type", nullable = false, length = 50)
+    private PromotionType promotionType = PromotionType.PROMOTIONAL_OFFER;
+
     @Size(max = 500)
     @Column(name = "banner_url")
     private String bannerUrl;
@@ -46,6 +56,18 @@ public class Promotion extends BaseEntity {
     @Size(max = 100)
     @Column(name = "target_audience")
     private String targetAudience;
+
+    @Size(max = 50)
+    @Column(name = "promo_code", length = 50)
+    private String promoCode;
+
+    @Size(max = 255)
+    @Column(name = "discount_details", length = 255)
+    private String discountDetails;
+
+    @Size(max = 500)
+    @Column(name = "cta_link", length = 500)
+    private String ctaLink;
 
     @NotNull
     @Column(name = "start_date", nullable = false)
@@ -68,5 +90,25 @@ public class Promotion extends BaseEntity {
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    @NotNull
+    @Builder.Default
+    @Column(name = "is_featured", nullable = false)
+    private Boolean isFeatured = false;
+
+    @NotNull
+    @Builder.Default
+    @Column(name = "views_count", nullable = false)
+    private Long viewsCount = 0L;
+
+    @NotNull
+    @Builder.Default
+    @Column(name = "clicks_count", nullable = false)
+    private Long clicksCount = 0L;
+
+    @NotNull
+    @Builder.Default
+    @Column(name = "redemptions_count", nullable = false)
+    private Long redemptionsCount = 0L;
 }
 

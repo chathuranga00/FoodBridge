@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import {
@@ -47,7 +47,7 @@ import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
 import PartnershipTimeline from '../../components/common/PartnershipTimeline'
 import PartnershipMessageThread from '../../components/common/PartnershipMessageThread'
-import { profileApi, foodListingApi, foodRescueApi, groceryApi, contributionApi, partnershipApi, campaignApi, impactApi } from '../../api/client'
+import { profileApi, foodListingApi, foodRescueApi, groceryApi, contributionApi, partnershipApi, campaignApi, impactApi, promotionApi } from '../../api/client'
 import ImpactAnalyticsView from '../../components/impact/ImpactAnalyticsView'
 import { SRI_LANKA_DISTRICTS, BUSINESS_TYPES, GROCERY_CATEGORIES } from '../../utils/constants'
 
@@ -125,6 +125,28 @@ export default function BusinessDashboard() {
   const [loadingBusinessImpact, setLoadingBusinessImpact] = useState(false)
   const [impactStart, setImpactStart] = useState(null)
   const [impactEnd, setImpactEnd] = useState(null)
+
+  // Promotions & Growth State
+  const [myPromotions, setMyPromotions] = useState([])
+  const [promoAnalytics, setPromoAnalytics] = useState(null)
+  const [loadingPromotions, setLoadingPromotions] = useState(false)
+  const [isPromoModalOpen, setIsPromoModalOpen] = useState(false)
+  const [editingPromo, setEditingPromo] = useState(null)
+  const [submittingPromo, setSubmittingPromo] = useState(false)
+  const [promoForm, setPromoForm] = useState({
+    title: '',
+    description: '',
+    promotionType: 'PROMOTIONAL_OFFER',
+    bannerUrl: '',
+    targetAudience: '',
+    promoCode: '',
+    discountDetails: '',
+    ctaLink: '',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    costLkr: 3500.0,
+    isActive: true,
+  })
 
   // Modal States
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
@@ -297,6 +319,113 @@ export default function BusinessDashboard() {
       console.error('Error fetching business impact', err)
     } finally {
       setLoadingBusinessImpact(false)
+    }
+  }
+
+  const loadPromotionsData = async () => {
+    try {
+      setLoadingPromotions(true)
+      const [promosRes, analyticsRes] = await Promise.all([
+        promotionApi.getMyPromotions(),
+        promotionApi.getMyAnalytics(),
+      ])
+      setMyPromotions(promosRes.data || [])
+      setPromoAnalytics(analyticsRes.data || null)
+    } catch (err) {
+      console.error('Failed to load promotions', err)
+      showToast('Could not load promotions data', 'error')
+    } finally {
+      setLoadingPromotions(false)
+    }
+  }
+
+  const handleOpenPromoModal = (promo = null) => {
+    if (promo) {
+      setEditingPromo(promo)
+      setPromoForm({
+        title: promo.title || '',
+        description: promo.description || '',
+        promotionType: promo.promotionType || 'PROMOTIONAL_OFFER',
+        bannerUrl: promo.bannerUrl || '',
+        targetAudience: promo.targetAudience || '',
+        promoCode: promo.promoCode || '',
+        discountDetails: promo.discountDetails || '',
+        ctaLink: promo.ctaLink || '',
+        startDate: promo.startDate ? promo.startDate.split('T')[0] : new Date().toISOString().split('T')[0],
+        endDate: promo.endDate ? promo.endDate.split('T')[0] : new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+        costLkr: promo.costLkr || 3500.0,
+        isActive: promo.isActive !== false,
+      })
+    } else {
+      setEditingPromo(null)
+      setPromoForm({
+        title: '',
+        description: '',
+        promotionType: 'PROMOTIONAL_OFFER',
+        bannerUrl: '',
+        targetAudience: '',
+        promoCode: '',
+        discountDetails: '',
+        ctaLink: '',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+        costLkr: 3500.0,
+        isActive: true,
+      })
+    }
+    setIsPromoModalOpen(true)
+  }
+
+  const handleSavePromotion = async (e) => {
+    e.preventDefault()
+    if (!promoForm.title.trim()) {
+      showToast('Promotion title is required', 'error')
+      return
+    }
+
+    try {
+      setSubmittingPromo(true)
+      const payload = {
+        ...promoForm,
+        startDate: new Date(promoForm.startDate).toISOString(),
+        endDate: new Date(promoForm.endDate).toISOString(),
+      }
+
+      if (editingPromo) {
+        await promotionApi.updatePromotion(editingPromo.id, payload)
+        showToast('Promotion updated successfully!', 'success')
+      } else {
+        await promotionApi.createPromotion(payload)
+        showToast('Promotion created successfully!', 'success')
+      }
+      setIsPromoModalOpen(false)
+      loadPromotionsData()
+    } catch (err) {
+      console.error('Failed to save promotion', err)
+      showToast(err.response?.data?.message || 'Error saving promotion', 'error')
+    } finally {
+      setSubmittingPromo(false)
+    }
+  }
+
+  const handleTogglePromoStatus = async (promoId) => {
+    try {
+      await promotionApi.toggleStatus(promoId)
+      showToast('Promotion status updated', 'success')
+      loadPromotionsData()
+    } catch (err) {
+      showToast('Failed to update promotion status', 'error')
+    }
+  }
+
+  const handleDeletePromo = async (promoId) => {
+    if (!window.confirm('Are you sure you want to delete this promotion?')) return
+    try {
+      await promotionApi.deletePromotion(promoId)
+      showToast('Promotion deleted', 'success')
+      loadPromotionsData()
+    } catch (err) {
+      showToast('Failed to delete promotion', 'error')
     }
   }
 
@@ -1425,7 +1554,18 @@ export default function BusinessDashboard() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {profile?.id && (
+            <Link to={`/businesses/${profile.id}`} target="_blank" rel="noopener noreferrer">
+              <Button
+                variant="outline"
+                icon={<ExternalLink size={16} />}
+              >
+                View Public Profile
+              </Button>
+            </Link>
+          )}
+
           <Button
             variant="outline"
             icon={<Building2 size={16} />}
@@ -1744,6 +1884,29 @@ export default function BusinessDashboard() {
         >
           <TrendingUp size={18} />
           Impact & Sustainability
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('promotions')
+            loadPromotionsData()
+          }}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'promotions' ? '3px solid var(--color-primary)' : '3px solid transparent',
+            color: activeTab === 'promotions' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <Sparkles size={18} />
+          Promotions & Growth
         </button>
       </div>
 
@@ -2110,6 +2273,320 @@ export default function BusinessDashboard() {
           }}
         />
       )}
+
+      {/* Tab: Promotions & Growth Management */}
+      {activeTab === 'promotions' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Analytics Summary Header Cards */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '1rem',
+            }}
+          >
+            <div style={{ background: 'var(--color-surface)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                Active Promos
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                {promoAnalytics?.activePromotions || 0}
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--color-surface)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                Total Views
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-text)' }}>
+                {promoAnalytics?.totalViews || 0}
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--color-surface)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                Total Clicks
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#2563eb' }}>
+                {promoAnalytics?.totalClicks || 0}
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--color-surface)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                Redemptions
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#16a34a' }}>
+                {promoAnalytics?.totalRedemptions || 0}
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--color-surface)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                Click-Through (CTR)
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#d97706' }}>
+                {promoAnalytics?.averageCtr || 0}%
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--color-surface)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                Conversion Rate
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#7c3aed' }}>
+                {promoAnalytics?.averageRedemptionRate || 0}%
+              </div>
+            </div>
+          </div>
+
+          {/* Promotions Table Card */}
+          <Card
+            title="Promotional Campaigns & Featured Visibility"
+            subtitle="Promote your sustainable surplus offers, drive store visits, and feature your business profile to thousands of conscious consumers across Sri Lanka."
+            action={
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Plus size={15} />}
+                onClick={() => handleOpenPromoModal()}
+              >
+                Create Promotion
+              </Button>
+            }
+          >
+            {loadingPromotions ? (
+              <Loader text="Loading your promotions..." />
+            ) : myPromotions.length === 0 ? (
+              <div style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
+                <Sparkles size={40} color="#94a3b8" style={{ margin: '0 auto 0.75rem' }} />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.4rem' }}>
+                  No Promotions Created Yet
+                </h3>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', maxWidth: '480px', margin: '0 auto 1.25rem' }}>
+                  Create featured profile listings, discount coupons, or promotional announcements to expand your customer reach and highlight your zero-waste commitments.
+                </p>
+                <Button variant="primary" icon={<Plus size={15} />} onClick={() => handleOpenPromoModal()}>
+                  Create Your First Promotion
+                </Button>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left', color: 'var(--color-text-muted)' }}>
+                      <th style={{ padding: '0.75rem 1rem' }}>Promotion</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Type</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Dates</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Status</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Views / Clicks / Redemptions</th>
+                      <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myPromotions.map((promo) => (
+                      <tr key={promo.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '1rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            {promo.bannerUrl && (
+                              <img
+                                src={promo.bannerUrl}
+                                alt={promo.title}
+                                style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover' }}
+                              />
+                            )}
+                            <div>
+                              <div style={{ fontWeight: 700, color: 'var(--color-text)' }}>{promo.title}</div>
+                              {promo.promoCode && (
+                                <span style={{ fontSize: '0.75rem', fontWeight: 800, background: '#f1f5f9', padding: '0.15rem 0.45rem', borderRadius: '4px', color: 'var(--color-primary)' }}>
+                                  CODE: {promo.promoCode}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              background: promo.promotionType === 'FEATURED_PROFILE' ? '#fef3c7' : '#eff6ff',
+                              color: promo.promotionType === 'FEATURED_PROFILE' ? '#b45309' : '#1e40af',
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '4px',
+                            }}
+                          >
+                            {promo.promotionType === 'FEATURED_PROFILE' ? 'Featured Profile' : 'Promotional Offer'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem', color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>
+                          {new Date(promo.startDate).toLocaleDateString()} &ndash; {new Date(promo.endDate).toLocaleDateString()}
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              background: promo.isActive ? '#dcfce7' : '#f1f5f9',
+                              color: promo.isActive ? '#15803d' : '#64748b',
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '999px',
+                            }}
+                          >
+                            {promo.isActive ? 'ACTIVE' : 'PAUSED'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.82rem' }}>
+                            <span>👁️ <strong>{promo.viewsCount || 0}</strong></span>
+                            <span>🖱️ <strong>{promo.clicksCount || 0}</strong></span>
+                            <span>🎁 <strong>{promo.redemptionsCount || 0}</strong></span>
+                            <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>({promo.ctr || 0}% CTR)</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '1rem', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleTogglePromoStatus(promo.id)}
+                            >
+                              {promo.isActive ? 'Pause' : 'Activate'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenPromoModal(promo)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                              onClick={() => handleDeletePromo(promo.id)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Modal: Create / Edit Promotion */}
+      <Modal
+        isOpen={isPromoModalOpen}
+        onClose={() => setIsPromoModalOpen(false)}
+        title={editingPromo ? 'Edit Promotion Campaign' : 'Create New Promotion Campaign'}
+        subtitle="Manage promotional ads, discount coupons, or featured placements (Rule 8 Operational Revenue)"
+      >
+        <form onSubmit={handleSavePromotion}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <Input
+              label="Promotion Title *"
+              placeholder="e.g., 20% Off Weekend Buffet / Featured Bakery Placement"
+              value={promoForm.title}
+              onChange={(e) => setPromoForm({ ...promoForm, title: e.target.value })}
+              required
+            />
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                Promotion Type *
+              </label>
+              <select
+                value={promoForm.promotionType}
+                onChange={(e) => setPromoForm({ ...promoForm, promotionType: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '0.65rem 0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-bg)',
+                  fontSize: '0.9rem',
+                }}
+              >
+                <option value="PROMOTIONAL_OFFER">Promotional Offer (Discounts & Bundles)</option>
+                <option value="FEATURED_PROFILE">Featured Profile Listing (Priority Search & Map Pin)</option>
+                <option value="COMMUNITY_SPONSOR">Community Sponsor Highlight</option>
+                <option value="DISCOUNT_COUPON">Digital Discount Coupon Code</option>
+              </select>
+            </div>
+
+            <Textarea
+              label="Description & Campaign Details"
+              placeholder="Describe what customers or volunteers receive, terms of the deal, etc."
+              value={promoForm.description}
+              onChange={(e) => setPromoForm({ ...promoForm, description: e.target.value })}
+              rows={3}
+            />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <Input
+                label="Coupon / Promo Code (Optional)"
+                placeholder="e.g. SAVE20 or WEEKEND50"
+                value={promoForm.promoCode}
+                onChange={(e) => setPromoForm({ ...promoForm, promoCode: e.target.value })}
+              />
+
+              <Input
+                label="Discount Details (Optional)"
+                placeholder="e.g. 25% off or Buy 1 Get 1 Free"
+                value={promoForm.discountDetails}
+                onChange={(e) => setPromoForm({ ...promoForm, discountDetails: e.target.value })}
+              />
+            </div>
+
+            <Input
+              label="Banner Image URL (Optional)"
+              placeholder="https://..."
+              value={promoForm.bannerUrl}
+              onChange={(e) => setPromoForm({ ...promoForm, bannerUrl: e.target.value })}
+            />
+
+            <Input
+              label="Call to Action (CTA) Website Link (Optional)"
+              placeholder="https://yourrestaurant.lk/menu"
+              value={promoForm.ctaLink}
+              onChange={(e) => setPromoForm({ ...promoForm, ctaLink: e.target.value })}
+            />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <Input
+                label="Start Date *"
+                type="date"
+                value={promoForm.startDate}
+                onChange={(e) => setPromoForm({ ...promoForm, startDate: e.target.value })}
+                required
+              />
+
+              <Input
+                label="End Date *"
+                type="date"
+                value={promoForm.endDate}
+                onChange={(e) => setPromoForm({ ...promoForm, endDate: e.target.value })}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+              <Button type="button" variant="outline" onClick={() => setIsPromoModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" disabled={submittingPromo}>
+                {submittingPromo ? 'Saving...' : editingPromo ? 'Update Promotion' : 'Publish Promotion'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal: Agreed Payment & Handover Instructions */}
       <Modal

@@ -19,11 +19,21 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
 
     List<Business> findByVerificationStatus(VerificationStatus status);
 
-    long countByVerificationStatus(VerificationStatus status);
+    List<Business> findByVerificationStatusOrderByIsFeaturedDescBusinessNameAsc(VerificationStatus status);
+
+    List<Business> findByVerificationStatusAndIsFeaturedTrue(VerificationStatus status);
+
+    List<Business> findByDistrictAndVerificationStatus(String district, VerificationStatus status);
+
+    List<Business> findByDistrictAndVerificationStatusOrderByIsFeaturedDescBusinessNameAsc(String district, VerificationStatus status);
 
     List<Business> findByBusinessTypeAndVerificationStatus(BusinessType businessType, VerificationStatus status);
 
-    List<Business> findByDistrictAndVerificationStatus(String district, VerificationStatus status);
+    List<Business> findByBusinessTypeAndVerificationStatusOrderByIsFeaturedDescBusinessNameAsc(BusinessType businessType, VerificationStatus status);
+
+    List<Business> findByDistrictAndBusinessTypeAndVerificationStatusOrderByIsFeaturedDescBusinessNameAsc(String district, BusinessType businessType, VerificationStatus status);
+
+    long countByVerificationStatus(VerificationStatus status);
 
     boolean existsByRegistrationNumber(String registrationNumber);
 }

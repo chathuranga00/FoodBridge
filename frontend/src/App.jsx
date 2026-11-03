@@ -19,6 +19,9 @@ import BrowseCampaigns from './pages/public/BrowseCampaigns'
 import CampaignDetail from './pages/public/CampaignDetail'
 import ExploreMap from './pages/public/ExploreMap'
 import PublicImpact from './pages/public/PublicImpact'
+import BrowseBusinesses from './pages/public/BrowseBusinesses'
+import BusinessProfile from './pages/public/BusinessProfile'
+import BusinessPartnerships from './pages/public/BusinessPartnerships'
 
 // Dashboard Shells
 import UserDashboard from './pages/dashboards/UserDashboard'
@@ -39,6 +42,10 @@ export default function App() {
               <Route path="/explore" element={<ExploreMap />} />
               <Route path="/map" element={<ExploreMap />} />
               <Route path="/impact" element={<PublicImpact />} />
+              <Route path="/businesses" element={<BrowseBusinesses />} />
+              <Route path="/businesses/:id" element={<BusinessProfile />} />
+              <Route path="/business/:id" element={<BusinessProfile />} />
+              <Route path="/business-partnerships" element={<BusinessPartnerships />} />
               <Route path="/grocery-offers" element={<BrowseGroceryOffers />} />
               <Route path="/campaigns" element={<BrowseCampaigns />} />
               <Route path="/campaigns/:id" element={<CampaignDetail />} />

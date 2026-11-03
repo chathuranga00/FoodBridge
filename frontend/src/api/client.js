@@ -227,6 +227,37 @@ export const impactApi = {
   },
 }
 
+// Business Public Directory & Profile API
+export const businessApi = {
+  getPublicBusinesses: (params) => apiClient.get('/public/businesses', { params }),
+  getPublicBusinessProfile: (id) => apiClient.get(`/public/businesses/${id}`),
+}
+
+// Promotions & Growth API (Featured listings, Promotional offers, Promo analytics)
+export const promotionApi = {
+  getMyPromotions: () => apiClient.get('/promotions/my'),
+  getMyAnalytics: () => apiClient.get('/promotions/analytics'),
+  createPromotion: (data) => apiClient.post('/promotions', data),
+  updatePromotion: (id, data) => apiClient.put(`/promotions/${id}`, data),
+  toggleStatus: (id) => apiClient.patch(`/promotions/${id}/toggle-status`),
+  deletePromotion: (id) => apiClient.delete(`/promotions/${id}`),
+
+  // Public promotions & event analytics
+  getPublicPromotions: () => apiClient.get('/public/promotions'),
+  getFeaturedPromotions: () => apiClient.get('/public/promotions/featured'),
+  getPromotionById: (id) => apiClient.get(`/public/promotions/${id}`),
+  recordView: (id) => apiClient.post(`/public/promotions/${id}/view`),
+  recordClick: (id) => apiClient.post(`/public/promotions/${id}/click`),
+  recordRedeem: (id) => apiClient.post(`/public/promotions/${id}/redeem`),
+
+  // Admin controls
+  getAllPromotions: () => apiClient.get('/admin/promotions'),
+  togglePromotionFeatured: (id, featured) => apiClient.put(`/admin/promotions/${id}/feature?featured=${featured}`),
+  getAllBusinesses: () => apiClient.get('/admin/businesses'),
+  toggleBusinessFeatured: (id, featured) => apiClient.put(`/admin/businesses/${id}/feature?featured=${featured}`),
+}
+
+
 
 
 

@@ -29,5 +29,7 @@ public interface PartnershipRepository extends JpaRepository<Partnership, UUID> 
 
     List<Partnership> findByBusinessIdAndRecognitionActiveTrue(UUID businessId);
 
+    long countByBusinessIdAndStatus(UUID businessId, PartnershipStatus status);
+
     List<Partnership> findAllByOrderByCreatedAtDesc();
 }
