@@ -165,3 +165,16 @@ export const groceryApi = {
   getBusinessRedemptions: () => apiClient.get('/grocery/redemptions/business'),
 }
 
+// Rural Community Campaigns API
+export const campaignApi = {
+  createCampaign: (data) => apiClient.post('/campaigns', data),
+  getPublicCampaigns: (params) => apiClient.get('/campaigns', { params }),
+  getCampaignById: (id) => apiClient.get(`/campaigns/${id}`),
+  getMyCampaigns: () => apiClient.get('/campaigns/my'),
+  postCampaignUpdate: (id, data) => apiClient.post(`/campaigns/${id}/updates`, data),
+  getCampaignUpdates: (id) => apiClient.get(`/campaigns/${id}/updates`),
+  pledgeToCampaign: (id, data) => apiClient.post(`/campaigns/${id}/pledge`, data),
+  getPendingCampaigns: () => apiClient.get('/admin/campaigns/pending'),
+  moderateCampaign: (id, data) => apiClient.post(`/admin/campaigns/${id}/moderate`, data),
+}
+

@@ -1,5 +1,6 @@
 package com.ecoconnect.foodbridge.model;
 
+import com.ecoconnect.foodbridge.model.enums.CampaignNeedType;
 import com.ecoconnect.foodbridge.model.enums.CampaignOrganizerType;
 import com.ecoconnect.foodbridge.model.enums.CampaignStatus;
 import jakarta.persistence.*;
@@ -49,6 +50,26 @@ public class Campaign extends BaseEntity {
     @Column(name = "description", columnDefinition = "TEXT", nullable = false)
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "need_type", length = 50)
+    private CampaignNeedType needType;
+
+    @Column(name = "target_quantity")
+    private Integer targetQuantity;
+
+    @Column(name = "target_unit", length = 50)
+    private String targetUnit;
+
+    @Builder.Default
+    @Column(name = "current_quantity")
+    private Integer currentQuantity = 0;
+
+    @Column(name = "cover_image_url", length = 500)
+    private String coverImageUrl;
+
+    @Column(name = "evidence_url", length = 500)
+    private String evidenceUrl;
+
     @Column(name = "target_beneficiaries_count")
     private Integer targetBeneficiariesCount;
 
@@ -86,6 +107,9 @@ public class Campaign extends BaseEntity {
     @Column(name = "approved_at")
     private OffsetDateTime approvedAt;
 
+    /**
+     * District only publicly exposed to preserve privacy of vulnerable people.
+     */
     @Size(max = 100)
     @Column(name = "district")
     private String district;
@@ -96,4 +120,3 @@ public class Campaign extends BaseEntity {
     @Column(name = "longitude", precision = 10, scale = 7)
     private BigDecimal longitude;
 }
-

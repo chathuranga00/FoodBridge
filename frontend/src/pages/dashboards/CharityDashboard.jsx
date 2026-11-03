@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import {
@@ -22,6 +23,11 @@ import {
   Search,
   Phone,
   Image as ImageIcon,
+  Camera,
+  ExternalLink,
+  Eye,
+  Calendar,
+  Gift,
 } from 'lucide-react'
 import Card from '../../components/common/Card'
 import Button from '../../components/common/Button'
@@ -31,10 +37,11 @@ import Input from '../../components/common/Input'
 import Select from '../../components/common/Select'
 import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
-import { profileApi, foodListingApi, foodRescueApi } from '../../api/client'
-import { SRI_LANKA_DISTRICTS } from '../../utils/constants'
+import { profileApi, foodListingApi, foodRescueApi, campaignApi } from '../../api/client'
+import { SRI_LANKA_DISTRICTS, CAMPAIGN_NEED_TYPES } from '../../utils/constants'
 
 export default function CharityDashboard() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { showToast } = useToast()
 
@@ -55,6 +62,37 @@ export default function CharityDashboard() {
 
   const [submittingProfile, setSubmittingProfile] = useState(false)
   const [submittingRequest, setSubmittingRequest] = useState(false)
+
+  // Campaigns State
+  const [campaigns, setCampaigns] = useState([])
+  const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false)
+  const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false)
+  const [selectedCampaignForUpdate, setSelectedCampaignForUpdate] = useState(null)
+  const [submittingCampaign, setSubmittingCampaign] = useState(false)
+  const [submittingDistribution, setSubmittingDistribution] = useState(false)
+
+  // Campaign Form State
+  const [campaignForm, setCampaignForm] = useState({
+    title: '',
+    description: '',
+    needType: 'FOOD',
+    district: 'Colombo',
+    targetQuantity: '',
+    targetUnit: 'Meal Packs',
+    startDate: '',
+    endDate: '',
+    coverImageUrl: '',
+    evidenceUrl: '',
+  })
+
+  // Distribution Update Form State
+  const [distributionForm, setDistributionForm] = useState({
+    title: '',
+    description: '',
+    photoUrl: '',
+    quantityDistributed: '',
+    distributionDate: new Date().toISOString().split('T')[0],
+  })
 
   // Request Form State
   const [requestForm, setRequestForm] = useState({
@@ -123,16 +161,27 @@ export default function CharityDashboard() {
     }
   }
 
+  const loadCampaigns = async () => {
+    try {
+      const res = await campaignApi.getMyCampaigns()
+      setCampaigns(res.data || [])
+    } catch (err) {
+      console.error('Error fetching charity campaigns', err)
+    }
+  }
+
   const loadFeedAndRequests = async () => {
     try {
-      const [availableRes, requestsRes] = await Promise.all([
+      const [availableRes, requestsRes, campaignsRes] = await Promise.all([
         foodListingApi.getAvailable(),
         foodRescueApi.getCharityRequests(),
+        campaignApi.getMyCampaigns(),
       ])
       setAvailableListings(availableRes.data || [])
       setMyRequests(requestsRes.data || [])
+      setCampaigns(campaignsRes.data || [])
     } catch (err) {
-      console.error('Error fetching available listings or requests', err)
+      console.error('Error fetching available listings, requests, or campaigns', err)
     }
   }
 
@@ -198,6 +247,85 @@ export default function CharityDashboard() {
       showToast(err.response?.data?.message || 'Failed to submit food rescue request', 'error')
     } finally {
       setSubmittingRequest(false)
+    }
+  }
+
+  const handleCreateCampaignSubmit = async (e) => {
+    e.preventDefault()
+    if (!profile || profile.verificationStatus !== 'VERIFIED') {
+      setIsBlockedModalOpen(true)
+      return
+    }
+
+    const qty = parseInt(campaignForm.targetQuantity, 10)
+    if (!qty || qty <= 0) {
+      showToast('Please specify a valid positive target quantity.', 'error')
+      return
+    }
+
+    if (!campaignForm.evidenceUrl?.trim()) {
+      showToast('Supporting evidence document URL is required for admin verification (Rule 3).', 'error')
+      return
+    }
+
+    setSubmittingCampaign(true)
+    try {
+      await campaignApi.createCampaign({
+        ...campaignForm,
+        targetQuantity: qty,
+      })
+      showToast('Community campaign submitted! Status is PENDING admin approval (Rule 3).', 'success')
+      setIsCreateCampaignModalOpen(false)
+      setCampaignForm({
+        title: '',
+        description: '',
+        needType: 'FOOD',
+        district: 'Colombo',
+        targetQuantity: '',
+        targetUnit: 'Meal Packs',
+        startDate: '',
+        endDate: '',
+        coverImageUrl: '',
+        evidenceUrl: '',
+      })
+      await loadCampaigns()
+      setActiveTab('campaigns')
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to create campaign', 'error')
+    } finally {
+      setSubmittingCampaign(false)
+    }
+  }
+
+  const handleOpenDistributionModal = (campaign) => {
+    setSelectedCampaignForUpdate(campaign)
+    setDistributionForm({
+      title: '',
+      description: '',
+      photoUrl: '',
+      quantityDistributed: '',
+      distributionDate: new Date().toISOString().split('T')[0],
+    })
+    setIsDistributionModalOpen(true)
+  }
+
+  const handleDistributionSubmit = async (e) => {
+    e.preventDefault()
+    const qty = distributionForm.quantityDistributed ? parseInt(distributionForm.quantityDistributed, 10) : 0
+
+    setSubmittingDistribution(true)
+    try {
+      await campaignApi.postCampaignUpdate(selectedCampaignForUpdate.id, {
+        ...distributionForm,
+        quantityDistributed: qty,
+      })
+      showToast('Field distribution proof posted successfully! Campaign progress updated.', 'success')
+      setIsDistributionModalOpen(false)
+      await loadCampaigns()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to post distribution proof', 'error')
+    } finally {
+      setSubmittingDistribution(false)
     }
   }
 
@@ -527,6 +655,26 @@ export default function CharityDashboard() {
             </span>
           )}
         </button>
+
+        <button
+          onClick={() => setActiveTab('campaigns')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'campaigns' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
+            color: activeTab === 'campaigns' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <Heart size={18} />
+          Rural Relief Campaigns ({campaigns.length})
+        </button>
       </div>
 
       {/* Tab 1: Browse Available Food */}
@@ -638,6 +786,202 @@ export default function CharityDashboard() {
             emptyMessage="You have not requested any surplus food batches yet. Browse available food to send requests."
           />
         </Card>
+      )}
+
+      {/* Tab 3: Rural Relief Campaigns */}
+      {activeTab === 'campaigns' && (
+        <div>
+          {/* Header & Create Campaign Button */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1.5rem',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}
+          >
+            <div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)' }}>
+                Verified Rural Community Campaigns
+              </h2>
+              <p className="text-sm text-muted">
+                Create transparent campaigns for food, clean water, books, or school supplies in remote districts. Campaigns require Admin verification (Rule 3) before going public.
+              </p>
+            </div>
+
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => {
+                if (!profile || profile.verificationStatus !== 'VERIFIED') {
+                  setIsBlockedModalOpen(true)
+                } else {
+                  setIsCreateCampaignModalOpen(true)
+                }
+              }}
+            >
+              Create Community Campaign
+            </Button>
+          </div>
+
+          {/* Beneficiary Privacy Notice */}
+          <div
+            style={{
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: 'var(--radius-md)',
+              padding: '1rem 1.25rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              gap: '0.75rem',
+              alignItems: 'center',
+            }}
+          >
+            <ShieldCheck size={20} style={{ color: '#16a34a', flexShrink: 0 }} />
+            <div style={{ fontSize: '0.85rem', color: '#14532d', lineHeight: 1.5 }}>
+              <strong>Privacy Protection Rule:</strong> Locations are publicly restricted strictly to the <strong>District level</strong>. Never publish home addresses, NIC numbers, or vulnerable identities. Provide accountability through verified field distribution updates.
+            </div>
+          </div>
+
+          {campaigns.length === 0 ? (
+            <Card>
+              <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                <Heart size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem' }} />
+                <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                  No Community Campaigns Yet
+                </div>
+                <p className="text-sm text-muted" style={{ maxWidth: '440px', margin: '0 auto 1.5rem auto' }}>
+                  Launch your first verified community campaign to mobilize clean water, stationery, or school essentials for underserved districts.
+                </p>
+                <Button
+                  variant="primary"
+                  icon={<Plus size={15} />}
+                  onClick={() => {
+                    if (!profile || profile.verificationStatus !== 'VERIFIED') {
+                      setIsBlockedModalOpen(true)
+                    } else {
+                      setIsCreateCampaignModalOpen(true)
+                    }
+                  }}
+                >
+                  Create First Campaign
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-2 gap-6">
+              {campaigns.map((camp) => (
+                <Card key={camp.id} style={{ display: 'flex', flexDirection: 'column' }}>
+                  {camp.coverImageUrl && (
+                    <div style={{ height: '170px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', marginBottom: '1rem', backgroundColor: '#f1f5f9' }}>
+                      <img
+                        src={camp.coverImageUrl}
+                        alt={camp.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => { e.target.style.display = 'none' }}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                    <span className="badge badge-sky">{camp.needType}</span>
+                    <span
+                      className={`badge ${
+                        camp.status === 'ACTIVE'
+                          ? 'badge-emerald'
+                          : camp.status === 'PENDING_APPROVAL'
+                          ? 'badge-amber'
+                          : camp.status === 'REJECTED'
+                          ? 'badge-rose'
+                          : 'badge-sky'
+                      }`}
+                    >
+                      {camp.status === 'PENDING_APPROVAL' ? 'Pending Admin Review' : camp.status}
+                    </span>
+                  </div>
+
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.25rem', color: 'var(--color-text)' }}>
+                    {camp.title}
+                  </h3>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.825rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
+                    <MapPin size={13} style={{ color: '#dc2626' }} />
+                    <span>{camp.district} District</span>
+                  </div>
+
+                  <p
+                    className="text-xs text-muted"
+                    style={{
+                      marginBottom: '1rem',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      lineHeight: 1.5,
+                      flex: 1,
+                    }}
+                  >
+                    {camp.description}
+                  </p>
+
+                  {/* Progress Bar */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.35rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                        {camp.currentQuantity || 0} / {camp.targetQuantity} {camp.targetUnit || 'units'}
+                      </span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#047857' }}>
+                        {camp.progressPercentage}%
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        width: '100%',
+                        height: '8px',
+                        backgroundColor: '#e2e8f0',
+                        borderRadius: '999px',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${Math.min(100, Math.max(0, camp.progressPercentage || 0))}%`,
+                          height: '100%',
+                          backgroundColor: '#059669',
+                          borderRadius: '999px',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
+                    {camp.status === 'ACTIVE' && (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        icon={<Camera size={14} />}
+                        onClick={() => handleOpenDistributionModal(camp)}
+                      >
+                        Post Distribution Proof
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={<ExternalLink size={14} />}
+                      onClick={() => navigate(`/campaigns/${camp.id}`)}
+                    >
+                      View Campaign
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Modal: Send Food Rescue Request */}
@@ -803,6 +1147,194 @@ export default function CharityDashboard() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal: Create Community Campaign */}
+      <Modal
+        isOpen={isCreateCampaignModalOpen}
+        onClose={() => setIsCreateCampaignModalOpen(false)}
+        title="Create Verified Community Campaign"
+        subtitle="Campaigns start in PENDING_APPROVAL status and require platform admin review before publishing (Rule 3)."
+        maxWidth="720px"
+      >
+        <form onSubmit={handleCreateCampaignSubmit}>
+          {/* Privacy Note in Form */}
+          <div
+            style={{
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.875rem 1rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              gap: '0.6rem',
+              alignItems: 'center',
+            }}
+          >
+            <ShieldCheck size={20} style={{ color: '#16a34a', flexShrink: 0 }} />
+            <div style={{ fontSize: '0.825rem', color: '#14532d', lineHeight: 1.4 }}>
+              <strong>Beneficiary Dignity Protocol:</strong> Location will be published strictly at the <strong>District level</strong>. Do not enter specific residential addresses or identifying personal records of vulnerable recipients.
+            </div>
+          </div>
+
+          <Input
+            label="Campaign Title"
+            required
+            value={campaignForm.title}
+            onChange={(e) => setCampaignForm({ ...campaignForm, title: e.target.value })}
+            placeholder="e.g. Clean Drinking Water Filters for 100 Rural Families"
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Primary Need Type"
+              required
+              options={CAMPAIGN_NEED_TYPES.filter((t) => t.value !== 'ALL')}
+              value={campaignForm.needType}
+              onChange={(e) => setCampaignForm({ ...campaignForm, needType: e.target.value })}
+            />
+            <Select
+              label="Target District"
+              required
+              options={SRI_LANKA_DISTRICTS.map((d) => ({ value: d, label: `${d} District` }))}
+              value={campaignForm.district}
+              onChange={(e) => setCampaignForm({ ...campaignForm, district: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Target Quantity (Count / Units)"
+              type="number"
+              min="1"
+              required
+              value={campaignForm.targetQuantity}
+              onChange={(e) => setCampaignForm({ ...campaignForm, targetQuantity: e.target.value })}
+              placeholder="e.g. 100"
+            />
+            <Input
+              label="Target Unit Label"
+              required
+              value={campaignForm.targetUnit}
+              onChange={(e) => setCampaignForm({ ...campaignForm, targetUnit: e.target.value })}
+              placeholder="e.g. Ceramic Filters, Stationery Packs, Meal Packs"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Campaign Start Date"
+              type="date"
+              value={campaignForm.startDate}
+              onChange={(e) => setCampaignForm({ ...campaignForm, startDate: e.target.value })}
+            />
+            <Input
+              label="Target Completion Date"
+              type="date"
+              value={campaignForm.endDate}
+              onChange={(e) => setCampaignForm({ ...campaignForm, endDate: e.target.value })}
+            />
+          </div>
+
+          <Input
+            label="Cover Photo URL (Optional)"
+            value={campaignForm.coverImageUrl}
+            onChange={(e) => setCampaignForm({ ...campaignForm, coverImageUrl: e.target.value })}
+            placeholder="https://images.unsplash.com/..."
+            helper="A high quality banner image representing the community project."
+          />
+
+          <Input
+            label="Supporting Evidence Document URL"
+            required
+            value={campaignForm.evidenceUrl}
+            onChange={(e) => setCampaignForm({ ...campaignForm, evidenceUrl: e.target.value })}
+            placeholder="https://storage.googleapis.com/... or official PDF link"
+            helper="Mandatory for admin review (Rule 3): Grama Niladhari letter, Divisional Secretariat request, or School Principal endorsement."
+          />
+
+          <Textarea
+            label="Detailed Campaign Description & Community Impact"
+            required
+            rows={4}
+            value={campaignForm.description}
+            onChange={(e) => setCampaignForm({ ...campaignForm, description: e.target.value })}
+            placeholder="Describe the community context, current challenge, number of households/students affected, and logistics plan..."
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+            <Button type="button" variant="outline" onClick={() => setIsCreateCampaignModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" loading={submittingCampaign}>
+              Submit for Admin Verification
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Post Field Distribution Update */}
+      <Modal
+        isOpen={isDistributionModalOpen}
+        onClose={() => setIsDistributionModalOpen(false)}
+        title={`Post Distribution Proof: ${selectedCampaignForUpdate?.title}`}
+        subtitle={`Upload photographic handover receipts and report items delivered to ${selectedCampaignForUpdate?.district} District.`}
+        maxWidth="600px"
+      >
+        <form onSubmit={handleDistributionSubmit}>
+          <Input
+            label="Update Title"
+            required
+            value={distributionForm.title}
+            onChange={(e) => setDistributionForm({ ...distributionForm, title: e.target.value })}
+            placeholder="e.g. Handover of 30 Water Filters at Community Hall"
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label={`Quantity Delivered (${selectedCampaignForUpdate?.targetUnit || 'Units'})`}
+              type="number"
+              min="0"
+              value={distributionForm.quantityDistributed}
+              onChange={(e) => setDistributionForm({ ...distributionForm, quantityDistributed: e.target.value })}
+              placeholder="e.g. 30"
+              helper="Increments campaign progress bar atomically."
+            />
+            <Input
+              label="Distribution Date"
+              type="date"
+              required
+              value={distributionForm.distributionDate}
+              onChange={(e) => setDistributionForm({ ...distributionForm, distributionDate: e.target.value })}
+            />
+          </div>
+
+          <Input
+            label="Photo Proof URL"
+            value={distributionForm.photoUrl}
+            onChange={(e) => setDistributionForm({ ...distributionForm, photoUrl: e.target.value })}
+            placeholder="https://images.unsplash.com/... or photo evidence URL"
+            helper="Photographic proof of supplies delivered or community handover event."
+          />
+
+          <Textarea
+            label="Handover Summary & Field Report"
+            required
+            rows={4}
+            value={distributionForm.description}
+            onChange={(e) => setDistributionForm({ ...distributionForm, description: e.target.value })}
+            placeholder="Provide context on how items were delivered, acknowledgement from local teachers or community leaders, and next steps..."
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+            <Button type="button" variant="outline" onClick={() => setIsDistributionModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" icon={<Camera size={15} />} loading={submittingDistribution}>
+              Publish Field Proof
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   )

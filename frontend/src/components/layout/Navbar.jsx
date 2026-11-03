@@ -13,6 +13,7 @@ export default function Navbar() {
   const navLinks = [
     { label: 'Home', path: '/' },
     { label: 'Grocery Deals', path: '/grocery-offers' },
+    { label: 'Campaigns', path: '/campaigns' },
     { label: 'About', path: '/about' },
     { label: 'How It Works', path: '/how-it-works' },
     { label: 'Contact', path: '/contact' },

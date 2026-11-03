@@ -26,7 +26,7 @@ import Table from '../../components/common/Table'
 import Modal from '../../components/common/Modal'
 import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
-import { adminApi } from '../../api/client'
+import { adminApi, campaignApi } from '../../api/client'
 
 export default function AdminDashboard() {
   const { user } = useAuth()
@@ -35,33 +35,48 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [pendingVerifications, setPendingVerifications] = useState([])
 
-  // Modal States
+  // Modal States for Organizations
   const [selectedOrg, setSelectedOrg] = useState(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const [processingAction, setProcessingAction] = useState(false)
 
-  // Pending Campaigns Mock Queue for Rule 3
-  const [pendingCampaigns, setPendingCampaigns] = useState([
-    { id: 'C-1', title: 'Flood Relief Soup Kitchen 2026', organizer: 'Colombo Red Cross Help', target: '500 Families', foodAmount: '300 KG', date: '2026-11-02' },
-    { id: 'C-2', title: 'Stray Puppies Feeding Drive', organizer: 'Bambalapitiya Animal Aid', target: '80 Dogs', foodAmount: '80 KG', date: '2026-11-01' },
-  ])
+  // Pending Campaigns for Rule 3
+  const [pendingCampaigns, setPendingCampaigns] = useState([])
+  const [selectedCampaign, setSelectedCampaign] = useState(null)
+  const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false)
+  const [isCampaignModerateModalOpen, setIsCampaignModerateModalOpen] = useState(false)
+  const [campaignModerationDecision, setCampaignModerationDecision] = useState('APPROVE')
+  const [campaignModerationReason, setCampaignModerationReason] = useState('')
 
   useEffect(() => {
-    loadPendingVerifications()
+    loadAllData()
   }, [])
 
-  const loadPendingVerifications = async () => {
+  const loadAllData = async () => {
     setLoading(true)
+    await Promise.all([loadPendingVerifications(), loadPendingCampaigns()])
+    setLoading(false)
+  }
+
+  const loadPendingCampaigns = async () => {
+    try {
+      const res = await campaignApi.getPendingCampaigns()
+      setPendingCampaigns(res.data || [])
+    } catch (err) {
+      console.error('Failed to load pending campaigns', err)
+      showToast('Failed to load pending campaigns queue', 'error')
+    }
+  }
+
+  const loadPendingVerifications = async () => {
     try {
       const res = await adminApi.getPendingVerifications()
       setPendingVerifications(res.data || [])
     } catch (err) {
       console.error('Failed to load pending verifications', err)
       showToast('Failed to load pending verifications queue', 'error')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -117,14 +132,49 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleApproveCampaign = (id, title) => {
-    setPendingCampaigns((prev) => prev.filter((c) => c.id !== id))
-    showToast(`Approved campaign "${title}" for public viewing (Rule 3).`, 'success')
+  const handleOpenCampaignDetails = (camp) => {
+    setSelectedCampaign(camp)
+    setIsCampaignDetailsModalOpen(true)
   }
 
-  const handleRejectCampaign = (id, title) => {
-    setPendingCampaigns((prev) => prev.filter((c) => c.id !== id))
-    showToast(`Rejected campaign "${title}".`, 'warning')
+  const handleOpenCampaignModerate = (camp, decision) => {
+    setSelectedCampaign(camp)
+    setCampaignModerationDecision(decision)
+    setCampaignModerationReason(
+      decision === 'APPROVE'
+        ? 'Verified charity campaign credentials and supporting evidence approved by Administrator.'
+        : ''
+    )
+    setIsCampaignModerateModalOpen(true)
+  }
+
+  const handleConfirmCampaignModerate = async (e) => {
+    e.preventDefault()
+    if (!campaignModerationReason.trim() && campaignModerationDecision === 'REJECT') {
+      showToast('A reason is required to decline a campaign.', 'error')
+      return
+    }
+
+    setProcessingAction(true)
+    try {
+      await campaignApi.moderateCampaign(selectedCampaign.id, {
+        decision: campaignModerationDecision,
+        reason: campaignModerationReason.trim() || 'Approved by platform administrator.',
+      })
+      showToast(
+        campaignModerationDecision === 'APPROVE'
+          ? `Approved campaign "${selectedCampaign.title}"! Audit log recorded and campaign is now public.`
+          : `Declined campaign "${selectedCampaign.title}". Audit log recorded.`,
+        campaignModerationDecision === 'APPROVE' ? 'success' : 'warning'
+      )
+      setIsCampaignModerateModalOpen(false)
+      setIsCampaignDetailsModalOpen(false)
+      loadPendingCampaigns()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to moderate campaign', 'error')
+    } finally {
+      setProcessingAction(false)
+    }
   }
 
   const stats = [
@@ -248,29 +298,102 @@ export default function AdminDashboard() {
   ]
 
   const campaignColumns = [
-    { key: 'title', label: 'Campaign Title' },
-    { key: 'organizer', label: 'Organizer' },
-    { key: 'target', label: 'Beneficiaries' },
-    { key: 'foodAmount', label: 'Food Target' },
-    { key: 'date', label: 'Submitted' },
     {
-      key: 'action',
-      label: 'Approval (Rule 3)',
+      key: 'title',
+      label: 'Campaign Title',
       render: (_, row) => (
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div>
+          <div style={{ fontWeight: 700 }}>{row.title}</div>
+          <div className="text-xs text-muted" style={{ display: 'flex', gap: '0.4rem', marginTop: '0.2rem' }}>
+            <span className="badge badge-sky" style={{ fontSize: '0.65rem' }}>{row.needType}</span>
+            <span>• {row.district} District</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'charityName',
+      label: 'Organizing Charity',
+      render: (val, row) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{val || row.organizer || 'Charity'}</div>
+          <div className="text-xs text-muted">Verified NGO</div>
+        </div>
+      ),
+    },
+    {
+      key: 'target',
+      label: 'Target Goal',
+      render: (_, row) => (
+        <div>
+          <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
+            {row.targetQuantity} {row.targetUnit || 'units'}
+          </div>
+          <div className="text-xs text-muted">
+            {row.currentQuantity || 0} collected
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'evidenceUrl',
+      label: 'Evidence Document',
+      render: (val) =>
+        val ? (
+          <a
+            href={val}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              color: 'var(--color-primary-600)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+            }}
+          >
+            <FileText size={14} /> Review Proof
+          </a>
+        ) : (
+          <span className="text-xs text-muted">None attached</span>
+        ),
+    },
+    {
+      key: 'createdAt',
+      label: 'Submitted',
+      render: (val) => (
+        <span className="text-xs text-muted">
+          {val ? new Date(val).toLocaleDateString() : 'Recent'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Moderation Decision',
+      render: (_, row) => (
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <Button
+            size="sm"
+            variant="outline"
+            icon={<Eye size={13} />}
+            onClick={() => handleOpenCampaignDetails(row)}
+          >
+            Review
+          </Button>
           <Button
             size="sm"
             variant="primary"
-            icon={<Check size={14} />}
-            onClick={() => handleApproveCampaign(row.id, row.title)}
+            icon={<Check size={13} />}
+            onClick={() => handleOpenCampaignModerate(row, 'APPROVE')}
           >
             Approve
           </Button>
           <Button
             size="sm"
             variant="danger"
-            icon={<X size={14} />}
-            onClick={() => handleRejectCampaign(row.id, row.title)}
+            icon={<X size={13} />}
+            onClick={() => handleOpenCampaignModerate(row, 'REJECT')}
           >
             Decline
           </Button>
@@ -302,7 +425,7 @@ export default function AdminDashboard() {
         <Button
           variant="outline"
           icon={<RefreshCw size={15} />}
-          onClick={loadPendingVerifications}
+          onClick={loadAllData}
           loading={loading}
         >
           Refresh Queue
@@ -543,6 +666,144 @@ export default function AdminDashboard() {
               loading={processingAction}
             >
               Confirm Rejection & Send Notice
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Campaign Details & Evidence Modal */}
+      <Modal
+        isOpen={isCampaignDetailsModalOpen}
+        onClose={() => setIsCampaignDetailsModalOpen(false)}
+        title={selectedCampaign?.title || 'Campaign Review'}
+        subtitle={`Organized by ${selectedCampaign?.charityName || 'Charity'} • ${selectedCampaign?.district} District (Rule 3)`}
+        maxWidth="650px"
+      >
+        {selectedCampaign && (
+          <div>
+            <div
+              style={{
+                backgroundColor: 'var(--color-bg-alt)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1.25rem',
+                marginBottom: '1.25rem',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <span className="badge badge-sky">{selectedCampaign.needType}</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+                  Target: {selectedCampaign.targetQuantity} {selectedCampaign.targetUnit || 'units'}
+                </span>
+              </div>
+              <div style={{ fontWeight: 700, marginBottom: '0.5rem', fontSize: '0.95rem' }}>
+                Campaign Summary & Objective
+              </div>
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', lineHeight: 1.6, margin: 0 }}>
+                {selectedCampaign.description || 'No description provided.'}
+              </p>
+            </div>
+
+            {/* Evidence Document Section */}
+            <div
+              style={{
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#1e40af' }}>
+                <FileText size={24} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                    Supporting Community Evidence
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#3b82f6' }}>
+                    Official Grama Niladhari or School confirmation document
+                  </div>
+                </div>
+              </div>
+              {selectedCampaign.evidenceUrl ? (
+                <a
+                  href={selectedCampaign.evidenceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <ExternalLink size={14} /> View Evidence
+                </a>
+              ) : (
+                <span className="badge badge-amber">No Document</span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <Button variant="outline" onClick={() => setIsCampaignDetailsModalOpen(false)}>
+                Close
+              </Button>
+              <Button
+                variant="danger"
+                icon={<X size={14} />}
+                onClick={() => handleOpenCampaignModerate(selectedCampaign, 'REJECT')}
+              >
+                Decline
+              </Button>
+              <Button
+                variant="primary"
+                icon={<Check size={14} />}
+                onClick={() => handleOpenCampaignModerate(selectedCampaign, 'APPROVE')}
+              >
+                Approve & Publish
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Campaign Moderation Reason Modal */}
+      <Modal
+        isOpen={isCampaignModerateModalOpen}
+        onClose={() => setIsCampaignModerateModalOpen(false)}
+        title={`${campaignModerationDecision === 'APPROVE' ? 'Approve' : 'Decline'} Campaign: ${selectedCampaign?.title}`}
+        subtitle={`This action will update the campaign status to ${campaignModerationDecision === 'APPROVE' ? 'ACTIVE' : 'REJECTED'} and record an entry in audit_logs (Rule 3).`}
+        maxWidth="550px"
+      >
+        <form onSubmit={handleConfirmCampaignModerate}>
+          <Textarea
+            label="Moderation Reason / Auditor Note"
+            required={campaignModerationDecision === 'REJECT'}
+            rows={4}
+            value={campaignModerationReason}
+            onChange={(e) => setCampaignModerationReason(e.target.value)}
+            placeholder={
+              campaignModerationDecision === 'APPROVE'
+                ? 'e.g. Grama Niladhari letter and school supply requirements verified.'
+                : 'e.g. Evidence document is unclear or lacks official seal. Please re-submit with letterhead.'
+            }
+            helper="Recorded in audit_logs for transparent platform governance."
+          />
+
+          <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsCampaignModerateModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant={campaignModerationDecision === 'APPROVE' ? 'primary' : 'danger'}
+              icon={campaignModerationDecision === 'APPROVE' ? <Check size={14} /> : <X size={14} />}
+              loading={processingAction}
+            >
+              Confirm {campaignModerationDecision === 'APPROVE' ? 'Approval' : 'Decline'}
             </Button>
           </div>
         </form>

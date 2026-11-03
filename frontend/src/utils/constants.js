@@ -50,4 +50,13 @@ export const GROCERY_CATEGORIES = [
   'Other Groceries',
 ]
 
+export const CAMPAIGN_NEED_TYPES = [
+  { value: 'ALL', label: 'All Community Needs' },
+  { value: 'FOOD', label: 'Food & Nutrition' },
+  { value: 'CLEAN_WATER', label: 'Clean Water' },
+  { value: 'BOOKS_STATIONERY', label: 'Books & Stationery' },
+  { value: 'SCHOOL_SUPPLIES', label: 'School Supplies' },
+  { value: 'FAMILY_ESSENTIALS', label: 'Family Essentials' },
+]
+
 
