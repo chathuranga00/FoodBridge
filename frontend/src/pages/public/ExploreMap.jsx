@@ -142,11 +142,45 @@ export default function ExploreMap() {
           maxZoom: 18,
         })
 
-        // Standard clean OpenStreetMap tile layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // Tile Layers Configuration (OpenStreetMap default + Google Maps if key present)
+        const googleApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           maxZoom: 19,
-        }).addTo(map)
+        })
+
+        const baseLayers = {
+          'OpenStreetMap': osmLayer,
+        }
+
+        let defaultLayer = osmLayer
+
+        if (googleApiKey) {
+          const googleRoadmap = L.tileLayer(`https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${googleApiKey}`, {
+            attribution: '&copy; Google Maps',
+            maxZoom: 20,
+          })
+          const googleSatellite = L.tileLayer(`https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${googleApiKey}`, {
+            attribution: '&copy; Google Maps Satellite',
+            maxZoom: 20,
+          })
+          const googleTerrain = L.tileLayer(`https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}&key=${googleApiKey}`, {
+            attribution: '&copy; Google Maps Terrain',
+            maxZoom: 20,
+          })
+
+          baseLayers['Google Roadmap'] = googleRoadmap
+          baseLayers['Google Satellite'] = googleSatellite
+          baseLayers['Google Terrain'] = googleTerrain
+          defaultLayer = googleRoadmap
+        }
+
+        defaultLayer.addTo(map)
+
+        if (Object.keys(baseLayers).length > 1) {
+          L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map)
+        }
 
         // Add Zoom Control to bottom-left to leave space for controls
         L.control.zoom({ position: 'bottomleft' }).addTo(map)
@@ -382,9 +416,18 @@ export default function ExploreMap() {
           ${distanceHtml}
           ${campaignSafetyNotice}
 
-          <a href="${escapeHtml(marker.targetUrl || '/')}" class="popup-action-btn">
-            ${actionText} &rarr;
-          </a>
+          <div style="display: flex; gap: 0.4rem; margin-top: 0.5rem;">
+            <a href="${escapeHtml(marker.targetUrl || '/')}" class="popup-action-btn" style="flex: 1; text-align: center;">
+              ${actionText} &rarr;
+            </a>
+            ${
+              marker.latitude && marker.longitude
+                ? `<a href="https://www.google.com/maps/dir/?api=1&destination=${marker.latitude},${marker.longitude}" target="_blank" rel="noopener noreferrer" class="popup-action-btn" style="background: #0284c7; flex: 0 0 auto; padding: 0.45rem 0.65rem;" title="Get directions in Google Maps">
+                     🗺️
+                   </a>`
+                : ''
+            }
+          </div>
         </div>
       </div>
     `
@@ -998,8 +1041,28 @@ export default function ExploreMap() {
                       </div>
                     )}
 
-                    {/* Action link */}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.2rem' }}>
+                    {/* Action links */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.35rem' }}>
+                      {marker.latitude && marker.longitude ? (
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${marker.latitude},${marker.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            fontSize: '0.74rem',
+                            color: '#0284c7',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            textDecoration: 'none',
+                            fontWeight: 500,
+                          }}
+                          title="Get directions in Google Maps"
+                        >
+                          <Navigation size={12} /> Directions
+                        </a>
+                      ) : <span />}
                       <span
                         style={{
                           fontSize: '0.78rem',
