@@ -15,5 +15,14 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
     List<AuditLog> findByEntityNameAndEntityIdOrderByCreatedAtDesc(String entityName, UUID entityId);
 
     List<AuditLog> findByActionOrderByCreatedAtDesc(String action);
-}
 
+    List<AuditLog> findByEntityNameOrderByCreatedAtDesc(String entityName);
+
+    List<AuditLog> findByActionAndEntityNameOrderByCreatedAtDesc(String action, String entityName);
+
+    List<AuditLog> findAllByOrderByCreatedAtDesc();
+
+    List<AuditLog> findTop100ByOrderByCreatedAtDesc();
+
+    List<AuditLog> findTop200ByOrderByCreatedAtDesc();
+}

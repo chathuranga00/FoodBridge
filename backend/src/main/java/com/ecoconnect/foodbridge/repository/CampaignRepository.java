@@ -18,6 +18,8 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
 
     List<Campaign> findByStatusOrderByCreatedAtDesc(CampaignStatus status);
 
+    List<Campaign> findAllByOrderByCreatedAtDesc();
+
     long countByStatus(CampaignStatus status);
 
     List<Campaign> findByCharityId(UUID charityId);

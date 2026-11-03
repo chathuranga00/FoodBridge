@@ -127,11 +127,43 @@ export const profileApi = {
   updateCharityProfile: (data) => apiClient.put('/profiles/charity', data),
 }
 
-// Admin Verification API functions (Rule 1 & Rule 2)
+// Admin Platform & Governance API functions
 export const adminApi = {
+  // Verification Queue (Rule 1 & Rule 2)
   getPendingVerifications: () => apiClient.get('/admin/verifications/pending'),
   getVerificationDetails: (type, id) => apiClient.get(`/admin/verifications/${type}/${id}`),
   decideVerification: (type, id, data) => apiClient.post(`/admin/verifications/${type}/${id}/decide`, data),
+
+  // Platform Overview
+  getOverview: () => apiClient.get('/admin/overview'),
+
+  // User Management
+  getUsers: (params) => apiClient.get('/admin/users', { params }),
+  getUserById: (id) => apiClient.get(`/admin/users/${id}`),
+  updateUserStatus: (id, data) => apiClient.put(`/admin/users/${id}/status`, data),
+  updateUserRole: (id, data) => apiClient.put(`/admin/users/${id}/role`, data),
+
+  // Listing Management
+  getListings: (params) => apiClient.get('/admin/listings', { params }),
+  updateListingStatus: (type, id, data) => apiClient.put(`/admin/listings/${type}/${id}/status`, data),
+  deleteListing: (type, id, params) => apiClient.delete(`/admin/listings/${type}/${id}`, { params }),
+
+  // Campaign Moderation
+  getAllCampaigns: (params) => apiClient.get('/admin/campaigns', { params }),
+  toggleCampaignFeatured: (id, featured) => apiClient.put(`/admin/campaigns/${id}/feature?featured=${featured}`),
+  updateCampaignStatus: (id, params) => apiClient.put(`/admin/campaigns/${id}/status`, null, { params }),
+
+  // Contribution Monitoring
+  getContributions: (params) => apiClient.get('/admin/contributions', { params }),
+  getContributionSummary: () => apiClient.get('/admin/contributions/summary'),
+
+  // Audit Log Viewer
+  getAuditLogs: (params) => apiClient.get('/admin/audit-logs', { params }),
+
+  // Platform Settings
+  getSettings: () => apiClient.get('/admin/settings'),
+  updateSettings: (data) => apiClient.put('/admin/settings', data),
+  getPublicSettings: () => apiClient.get('/public/settings'),
 }
 
 // Food Listings API (Rule 2 & Rule 7)

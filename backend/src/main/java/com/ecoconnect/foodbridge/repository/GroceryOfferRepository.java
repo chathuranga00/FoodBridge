@@ -23,6 +23,10 @@ public interface GroceryOfferRepository extends JpaRepository<GroceryOffer, UUID
 
     List<GroceryOffer> findByStatus(GroceryOfferStatus status);
 
+    List<GroceryOffer> findByStatusOrderByCreatedAtDesc(GroceryOfferStatus status);
+
+    List<GroceryOffer> findAllByOrderByCreatedAtDesc();
+
     List<GroceryOffer> findByStatusAndExpiryDateAfter(GroceryOfferStatus status, OffsetDateTime dateTime);
 
     @Query("SELECT g FROM GroceryOffer g JOIN FETCH g.business b " +
@@ -51,7 +55,7 @@ public interface GroceryOfferRepository extends JpaRepository<GroceryOffer, UUID
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE GroceryOffer g SET g.availableQuantity = g.availableQuantity + :qty, " +
-           "g.status = com.ecoconnect.foodbridge.model.enums.GroceryOfferStatus.AVAILABLE " +
-           "WHERE g.id = :id AND g.status != com.ecoconnect.foodbridge.model.enums.GroceryOfferStatus.CANCELLED")
+           "g.status = CASE WHEN g.status = com.ecoconnect.foodbridge.model.enums.GroceryOfferStatus.SOLD_OUT THEN com.ecoconnect.foodbridge.model.enums.GroceryOfferStatus.AVAILABLE ELSE g.status END " +
+           "WHERE g.id = :id")
     int incrementQuantityAtomic(@Param("id") UUID id, @Param("qty") int qty);
 }

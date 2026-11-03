@@ -38,9 +38,6 @@ import {
   Sparkles,
   CreditCard,
   Zap,
-  CreditCard,
-  CheckCircle2,
-  Zap,
 } from 'lucide-react'
 import Card from '../../components/common/Card'
 import Button from '../../components/common/Button'
@@ -1080,7 +1077,7 @@ export default function BusinessDashboard() {
         <div>
           <div style={{ fontWeight: 600 }}>{row.charityName}</div>
           <div className="text-xs text-muted">Reg: {row.charityRegistrationNumber || 'NGO'}</div>
-          {row.charityContactPhone && <div className="text-xs text-muted">📞 {row.charityContactPhone}</div>}
+          {row.charityContactPhone && <div className="text-xs text-muted">ðŸ“ž {row.charityContactPhone}</div>}
         </div>
       ),
     },
@@ -1310,7 +1307,7 @@ export default function BusinessDashboard() {
           </button>
           <div className="text-xs text-muted" style={{ display: 'flex', gap: '0.3rem', marginTop: '2px' }}>
             <span>{row.charityName}</span>
-            <span>•</span>
+            <span>â€¢</span>
             <MapPin size={11} style={{ color: '#dc2626' }} />
             <span>{row.campaignDistrict} District</span>
           </div>
@@ -1411,7 +1408,7 @@ export default function BusinessDashboard() {
           <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{val}</div>
           <div className="text-xs text-muted" style={{ display: 'flex', gap: '0.4rem', marginTop: '2px' }}>
             <span>{row.charityName}</span>
-            <span>•</span>
+            <span>â€¢</span>
             <MapPin size={11} style={{ color: '#dc2626' }} />
             <span>{row.campaignDistrict} District</span>
           </div>
@@ -2587,9 +2584,9 @@ export default function BusinessDashboard() {
                         </td>
                         <td style={{ padding: '1rem' }}>
                           <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.82rem' }}>
-                            <span>👁️ <strong>{promo.viewsCount || 0}</strong></span>
-                            <span>🖱️ <strong>{promo.clicksCount || 0}</strong></span>
-                            <span>🎁 <strong>{promo.redemptionsCount || 0}</strong></span>
+                            <span>ðŸ‘ï¸ <strong>{promo.viewsCount || 0}</strong></span>
+                            <span>ðŸ–±ï¸ <strong>{promo.clicksCount || 0}</strong></span>
+                            <span>ðŸŽ <strong>{promo.redemptionsCount || 0}</strong></span>
                             <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>({promo.ctr || 0}% CTR)</span>
                           </div>
                         </td>
@@ -2746,7 +2743,7 @@ export default function BusinessDashboard() {
                   Directory & Map Placement
                 </div>
                 <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: '0.2rem', color: currentSubscription?.hasFeaturedPlacement ? '#15803d' : '#64748b' }}>
-                  {currentSubscription?.hasFeaturedPlacement ? '⭐ Featured Placement' : 'Standard Listing'}
+                  {currentSubscription?.hasFeaturedPlacement ? 'â­ Featured Placement' : 'Standard Listing'}
                 </div>
               </div>
               <div>
@@ -3504,7 +3501,7 @@ export default function BusinessDashboard() {
             label="Detailed Description & Storage Condition"
             value={listingForm.description}
             onChange={(e) => setListingForm({ ...listingForm, description: e.target.value })}
-            placeholder="e.g. Leftover banquet buffet meals stored continuously above 65°C."
+            placeholder="e.g. Leftover banquet buffet meals stored continuously above 65Â°C."
             rows={2}
           />
 
@@ -3704,7 +3701,7 @@ export default function BusinessDashboard() {
               required
               options={activeCampaigns.map((c) => ({
                 value: c.id,
-                label: `${c.title} (${c.district || 'Rural'} District • Target: ${c.targetQuantity} ${c.needType})`,
+                label: `${c.title} (${c.district || 'Rural'} District â€¢ Target: ${c.targetQuantity} ${c.needType})`,
               }))}
               value={proposeForm.campaignId}
               onChange={(e) => setProposeForm({ ...proposeForm, campaignId: e.target.value })}
@@ -3827,7 +3824,7 @@ export default function BusinessDashboard() {
         isOpen={isPartnershipDetailsOpen}
         onClose={() => setIsPartnershipDetailsOpen(false)}
         title={selectedPartnership ? `Partnership: ${selectedPartnership.campaignTitle}` : 'Partnership Details'}
-        subtitle={selectedPartnership ? `Charity: ${selectedPartnership.charityName} • District: ${selectedPartnership.campaignDistrict || 'Rural'}` : ''}
+        subtitle={selectedPartnership ? `Charity: ${selectedPartnership.charityName} â€¢ District: ${selectedPartnership.campaignDistrict || 'Rural'}` : ''}
         maxWidth="850px"
       >
         {selectedPartnership && (

@@ -2,6 +2,7 @@ package com.ecoconnect.foodbridge.repository;
 
 import com.ecoconnect.foodbridge.model.CampaignContribution;
 import com.ecoconnect.foodbridge.model.enums.ContributionStatus;
+import com.ecoconnect.foodbridge.model.enums.ContributionType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,6 +23,14 @@ public interface CampaignContributionRepository extends JpaRepository<CampaignCo
 
     List<CampaignContribution> findByStatus(ContributionStatus status);
 
+    List<CampaignContribution> findByStatusOrderByCreatedAtDesc(ContributionStatus status);
+
+    List<CampaignContribution> findByContributionTypeOrderByCreatedAtDesc(ContributionType type);
+
+    List<CampaignContribution> findByStatusAndContributionTypeOrderByCreatedAtDesc(ContributionStatus status, ContributionType type);
+
+    List<CampaignContribution> findAllByOrderByCreatedAtDesc();
+
     List<CampaignContribution> findByCampaignCharityIdAndStatus(UUID charityId, ContributionStatus status);
 
     List<CampaignContribution> findByContributorUserIdOrderByCreatedAtDesc(UUID userId);
@@ -37,4 +46,10 @@ public interface CampaignContributionRepository extends JpaRepository<CampaignCo
 
     @Query("SELECT COALESCE(SUM(c.foodAmountKg), 0) FROM CampaignContribution c WHERE c.campaign.id = :campaignId AND c.status = 'CONFIRMED'")
     BigDecimal sumConfirmedFoodKgByCampaignId(@Param("campaignId") UUID campaignId);
+
+    @Query("SELECT COALESCE(SUM(c.monetaryAmount), 0) FROM CampaignContribution c WHERE c.status = 'CONFIRMED'")
+    BigDecimal sumTotalConfirmedMonetaryAmount();
+
+    @Query("SELECT COALESCE(SUM(c.foodAmountKg), 0) FROM CampaignContribution c WHERE c.status = 'CONFIRMED'")
+    BigDecimal sumTotalConfirmedFoodKg();
 }

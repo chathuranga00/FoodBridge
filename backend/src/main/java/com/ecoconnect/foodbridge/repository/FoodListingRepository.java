@@ -21,6 +21,10 @@ public interface FoodListingRepository extends JpaRepository<FoodListing, UUID> 
 
     List<FoodListing> findByStatus(FoodListingStatus status);
 
+    List<FoodListing> findByStatusOrderByCreatedAtDesc(FoodListingStatus status);
+
+    List<FoodListing> findAllByOrderByCreatedAtDesc();
+
     List<FoodListing> findBySuitabilityTypeAndStatus(FoodSuitabilityType suitabilityType, FoodListingStatus status);
 
     List<FoodListing> findByStatusAndExpiryDateAfter(FoodListingStatus status, OffsetDateTime dateTime);
@@ -37,4 +41,3 @@ public interface FoodListingRepository extends JpaRepository<FoodListing, UUID> 
             @Param("suitabilityType") FoodSuitabilityType suitabilityType,
             @Param("dateTime") OffsetDateTime dateTime);
 }
-

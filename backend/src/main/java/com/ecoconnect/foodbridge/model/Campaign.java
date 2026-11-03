@@ -126,6 +126,10 @@ public class Campaign extends BaseEntity {
     @Column(name = "handover_instructions", columnDefinition = "TEXT")
     private String handoverInstructions;
 
+    @Builder.Default
+    @Column(name = "is_featured", nullable = false)
+    private Boolean isFeatured = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sponsor_business_id")
     private Business sponsorBusiness;

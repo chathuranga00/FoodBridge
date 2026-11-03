@@ -57,6 +57,7 @@ public class CampaignResponse {
     private String paymentInstructions;
     private String handoverInstructions;
 
+    private Boolean isFeatured;
     private UUID sponsorBusinessId;
     private String sponsorBusinessName;
     private Boolean isSponsored;
@@ -115,6 +116,7 @@ public class CampaignResponse {
                 .createdAt(c.getCreatedAt())
                 .paymentInstructions(c.getPaymentInstructions())
                 .handoverInstructions(c.getHandoverInstructions())
+                .isFeatured(Boolean.TRUE.equals(c.getIsFeatured()))
                 .sponsorBusinessId(c.getSponsorBusiness() != null ? c.getSponsorBusiness().getId() : null)
                 .sponsorBusinessName(c.getSponsorBusiness() != null ? c.getSponsorBusiness().getBusinessName() : null)
                 .isSponsored(Boolean.TRUE.equals(c.getIsSponsored()))
