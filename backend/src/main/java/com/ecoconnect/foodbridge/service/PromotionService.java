@@ -265,3 +265,4 @@ public class PromotionService {
         return PromotionResponseDto.fromEntity(saved);
     }
 }
+

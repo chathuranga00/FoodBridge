@@ -50,3 +50,4 @@ public class PromotionRequestDto {
 
     private Boolean isActive;
 }
+

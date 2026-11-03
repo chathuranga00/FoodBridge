@@ -30,3 +30,4 @@ public class BusinessSummaryDto {
     private Long completedPartnershipsCount;
     private Double totalKgRescued;
 }
+

@@ -20,3 +20,4 @@ public class PromotionAnalyticsDto {
     private Double averageRedemptionRate;
     private List<PromotionResponseDto> promotions;
 }
+

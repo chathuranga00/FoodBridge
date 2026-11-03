@@ -22,3 +22,4 @@ ALTER TABLE promotions ADD COLUMN redemptions_count BIGINT NOT NULL DEFAULT 0;
 CREATE INDEX idx_promotions_is_featured ON promotions(is_featured);
 CREATE INDEX idx_promotions_is_active ON promotions(is_active);
 CREATE INDEX idx_promotions_type ON promotions(promotion_type);
+

@@ -6,3 +6,4 @@ public enum PromotionType {
     COMMUNITY_SPONSOR,
     DISCOUNT_COUPON
 }
+

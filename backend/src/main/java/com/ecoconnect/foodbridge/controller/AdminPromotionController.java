@@ -53,3 +53,4 @@ public class AdminPromotionController {
         return ResponseEntity.ok(updated);
     }
 }
+

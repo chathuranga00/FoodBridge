@@ -50,3 +50,4 @@ public class PublicBusinessProfileResponse {
     // Active promotions & campaigns for this business
     private List<PromotionResponseDto> activePromotions;
 }
+
