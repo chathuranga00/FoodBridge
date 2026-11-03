@@ -111,3 +111,4 @@ Configured in `SecurityConfig.java`:
   2. `Food Rescue Flow`: Submitting requests to `/food-rescue/requests` and restaurant approval via `/decide`.
   3. `Coupon Reservation & Redemption Flow`: Reserving offers and confirming in-store coupon redemption.
   4. `CSR Partnership Flow`: Proposing CSR terms and completing receipt confirmation with promotional recognition activation.
+
