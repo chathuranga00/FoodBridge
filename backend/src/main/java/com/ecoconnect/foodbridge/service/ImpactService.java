@@ -678,3 +678,4 @@ public class ImpactService {
         return Math.round(val * 100.0) / 100.0;
     }
 }
+

@@ -38,3 +38,4 @@ public class OrganizationImpactResponse {
     private LocalDate endDate;
     private OffsetDateTime generatedAt;
 }
+

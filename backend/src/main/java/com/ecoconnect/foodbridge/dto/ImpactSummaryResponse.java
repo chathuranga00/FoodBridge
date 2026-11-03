@@ -34,3 +34,4 @@ public class ImpactSummaryResponse {
     private LocalDate endDate;
     private OffsetDateTime generatedAt;
 }
+

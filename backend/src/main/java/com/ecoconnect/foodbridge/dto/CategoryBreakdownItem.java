@@ -16,3 +16,4 @@ public class CategoryBreakdownItem {
     private Long count;
     private Double percentage;
 }
+

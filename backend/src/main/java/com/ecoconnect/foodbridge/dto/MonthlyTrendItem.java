@@ -16,3 +16,4 @@ public class MonthlyTrendItem {
     private Long groceryRedeemed;
     private Long resourcesDistributed;
 }
+

@@ -20,3 +20,4 @@ public class ImpactMilestoneItem {
     private String description;
     private OffsetDateTime timestamp;
 }
+
