@@ -13,10 +13,21 @@ public interface PartnershipRepository extends JpaRepository<Partnership, UUID> 
 
     List<Partnership> findByBusinessId(UUID businessId);
 
+    List<Partnership> findByBusinessIdOrderByCreatedAtDesc(UUID businessId);
+
     List<Partnership> findByCharityId(UUID charityId);
+
+    List<Partnership> findByCharityIdOrderByCreatedAtDesc(UUID charityId);
 
     List<Partnership> findByAnimalOrgId(UUID animalOrgId);
 
     List<Partnership> findByStatus(PartnershipStatus status);
-}
 
+    List<Partnership> findByStatusOrderByCreatedAtDesc(PartnershipStatus status);
+
+    List<Partnership> findByCampaignIdAndRecognitionActiveTrue(UUID campaignId);
+
+    List<Partnership> findByBusinessIdAndRecognitionActiveTrue(UUID businessId);
+
+    List<Partnership> findAllByOrderByCreatedAtDesc();
+}

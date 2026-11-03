@@ -92,6 +92,7 @@ public class SecurityConfig {
                 // Public browse for grocery discount offers and community campaigns
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/grocery/offers", "/api/grocery/offers/*").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/campaigns", "/api/campaigns/*", "/api/campaigns/*/updates").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/partnerships/campaign/*/recognitions", "/api/partnerships/business/*/recognitions").permitAll()
                 // Current authenticated user profile
                 .requestMatchers("/api/auth/me").authenticated()
                 // Local dev H2 console

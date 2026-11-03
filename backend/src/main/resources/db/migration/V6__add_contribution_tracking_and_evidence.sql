@@ -17,3 +17,4 @@ ALTER TABLE campaigns ADD COLUMN handover_instructions TEXT;
 
 CREATE INDEX idx_contributions_campaign_status ON campaign_contributions(campaign_id, status);
 CREATE INDEX idx_contributions_distributed_at ON campaign_contributions(distributed_at);
+

@@ -188,3 +188,21 @@ export const contributionApi = {
   recordDistribution: (id, data) => apiClient.post(`/contributions/${id}/distribute`, data),
 }
 
+// Business-to-Charity Partnership API
+export const partnershipApi = {
+  proposePartnership: (data) => apiClient.post('/partnerships/propose', data),
+  counterProposal: (id, data) => apiClient.post(`/partnerships/${id}/counter`, data),
+  acceptPartnership: (id, data) => apiClient.post(`/partnerships/${id}/accept`, data || {}),
+  declinePartnership: (id, data) => apiClient.post(`/partnerships/${id}/decline`, data),
+  deliverSupport: (id, data) => apiClient.post(`/partnerships/${id}/deliver`, data),
+  confirmReceiptAndComplete: (id, data) => apiClient.post(`/partnerships/${id}/complete`, data),
+  postMessage: (id, data) => apiClient.post(`/partnerships/${id}/messages`, data),
+  getPartnershipDetails: (id) => apiClient.get(`/partnerships/${id}`),
+  getMyBusinessPartnerships: () => apiClient.get('/partnerships/business/my'),
+  getMyCharityPartnerships: () => apiClient.get('/partnerships/charity/my'),
+  getCampaignRecognitions: (campaignId) => apiClient.get(`/partnerships/campaign/${campaignId}/recognitions`),
+  getBusinessRecognitions: (businessId) => apiClient.get(`/partnerships/business/${businessId}/recognitions`),
+  getAdminPartnerships: (params) => apiClient.get('/partnerships/admin', { params }),
+}
+
+

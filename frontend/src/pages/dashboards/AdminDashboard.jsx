@@ -19,6 +19,11 @@ import {
   Phone,
   MapPin,
   RefreshCw,
+  Handshake,
+  Lock,
+  MessageSquare,
+  Sparkles,
+  CheckCircle2,
 } from 'lucide-react'
 import Card from '../../components/common/Card'
 import Button from '../../components/common/Button'
@@ -26,13 +31,16 @@ import Table from '../../components/common/Table'
 import Modal from '../../components/common/Modal'
 import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
-import { adminApi, campaignApi } from '../../api/client'
+import PartnershipTimeline from '../../components/common/PartnershipTimeline'
+import PartnershipMessageThread from '../../components/common/PartnershipMessageThread'
+import { adminApi, campaignApi, partnershipApi } from '../../api/client'
 
 export default function AdminDashboard() {
   const { user } = useAuth()
   const { showToast } = useToast()
 
   const [loading, setLoading] = useState(true)
+  const [activeAdminTab, setActiveAdminTab] = useState('verifications')
   const [pendingVerifications, setPendingVerifications] = useState([])
 
   // Modal States for Organizations
@@ -50,14 +58,45 @@ export default function AdminDashboard() {
   const [campaignModerationDecision, setCampaignModerationDecision] = useState('APPROVE')
   const [campaignModerationReason, setCampaignModerationReason] = useState('')
 
+  // CSR Partnerships Monitoring State
+  const [adminPartnerships, setAdminPartnerships] = useState([])
+  const [loadingPartnerships, setLoadingPartnerships] = useState(false)
+  const [selectedAdminPartnership, setSelectedAdminPartnership] = useState(null)
+  const [isAdminPartnershipModalOpen, setIsAdminPartnershipModalOpen] = useState(false)
+  const [adminPartnershipFilter, setAdminPartnershipFilter] = useState('ALL')
+
   useEffect(() => {
     loadAllData()
   }, [])
 
   const loadAllData = async () => {
     setLoading(true)
-    await Promise.all([loadPendingVerifications(), loadPendingCampaigns()])
+    await Promise.all([loadPendingVerifications(), loadPendingCampaigns(), loadPartnerships()])
     setLoading(false)
+  }
+
+  const loadPartnerships = async () => {
+    try {
+      setLoadingPartnerships(true)
+      const res = await partnershipApi.getAdminPartnerships()
+      setAdminPartnerships(res.data || [])
+    } catch (err) {
+      console.error('Failed to load admin partnerships', err)
+      showToast('Failed to load CSR partnerships', 'error')
+    } finally {
+      setLoadingPartnerships(false)
+    }
+  }
+
+  const handleOpenPartnershipDetails = async (partnership) => {
+    try {
+      const res = await partnershipApi.getPartnershipById(partnership.id)
+      setSelectedAdminPartnership(res.data)
+      setIsAdminPartnershipModalOpen(true)
+    } catch (err) {
+      setSelectedAdminPartnership(partnership)
+      setIsAdminPartnershipModalOpen(true)
+    }
   }
 
   const loadPendingCampaigns = async () => {
@@ -402,6 +441,107 @@ export default function AdminDashboard() {
     },
   ]
 
+  const adminPartnershipColumns = [
+    {
+      key: 'businessName',
+      label: 'Business Sponsor',
+      render: (val, row) => (
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '0.925rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Building2 size={14} style={{ color: '#0284c7' }} />
+            <span>{val}</span>
+          </div>
+          <div className="text-xs text-muted" style={{ marginTop: '2px' }}>
+            CSR Partnership ID: <code>{row.id.substring(0, 8)}</code>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'charityName',
+      label: 'Charity & Campaign',
+      render: (val, row) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{val}</div>
+          <div className="text-xs text-muted">
+            Campaign: <strong>{row.campaignTitle}</strong> ({row.campaignDistrict} Dist.)
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'contributionType',
+      label: 'Agreed / Proposed Terms',
+      render: (type, row) => (
+        <div>
+          <span
+            className={`badge ${
+              type === 'MONETARY_PLEDGE' ? 'badge-sky' : type === 'FOOD_ITEMS' ? 'badge-amber' : 'badge-emerald'
+            }`}
+            style={{ fontSize: '0.7rem' }}
+          >
+            {type === 'MONETARY_PLEDGE' ? 'Money Pledge' : type === 'FOOD_ITEMS' ? 'Food Supplies' : 'Other Resources'}
+          </span>
+          <div style={{ fontWeight: 700, fontSize: '0.85rem', marginTop: '2px' }}>
+            {type === 'MONETARY_PLEDGE' && row.monetaryAmount
+              ? `Rs. ${Number(row.monetaryAmount).toLocaleString()}`
+              : `${row.quantity} ${row.unit || 'units'}`}
+          </div>
+          {row.itemDescription && (
+            <div className="text-xs text-muted" style={{ maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {row.itemDescription}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Workflow Status',
+      render: (status) => {
+        let badgeClass = 'badge-amber'
+        if (status === 'AGREED') badgeClass = 'badge-sky'
+        else if (status === 'DELIVERED') badgeClass = 'badge-purple'
+        else if (status === 'COMPLETED') badgeClass = 'badge-emerald'
+        else if (status === 'DECLINED' || status === 'CANCELLED') badgeClass = 'badge-rose'
+        return <span className={`badge ${badgeClass}`}>{status}</span>
+      },
+    },
+    {
+      key: 'recognitionActive',
+      label: 'Promotional Recognition',
+      render: (active, row) => {
+        if (active) {
+          return (
+            <span className="badge badge-emerald" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+              <Award size={12} /> Active ({row.agreedRecognition || row.requestedRecognition || 'Official Partner'})
+            </span>
+          )
+        }
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#64748b', fontSize: '0.75rem' }}>
+            <Lock size={12} />
+            <span>Locked (Receipt pending)</span>
+          </div>
+        )
+      },
+    },
+    {
+      key: 'actions',
+      label: 'Audit & Inspect',
+      render: (_, row) => (
+        <Button
+          size="sm"
+          variant="outline"
+          icon={<Eye size={13} />}
+          onClick={() => handleOpenPartnershipDetails(row)}
+        >
+          Audit Details
+        </Button>
+      ),
+    },
+  ]
+
   return (
     <div>
       {/* Admin Header */}
@@ -418,7 +558,7 @@ export default function AdminDashboard() {
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Platform Administration</h1>
           <p className="text-sm text-muted">
-            Enforce Rule 1 RBAC, Rule 2 Organization Verification, Rule 3 Campaign Approvals, and Audit Logging.
+            Enforce Rule 1 RBAC, Rule 2 Organization Verification, Rule 3 Campaign Approvals, and CSR Partnership Governance.
           </p>
         </div>
 
@@ -428,7 +568,7 @@ export default function AdminDashboard() {
           onClick={loadAllData}
           loading={loading}
         >
-          Refresh Queue
+          Refresh All
         </Button>
       </div>
 
@@ -452,41 +592,233 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Organization Verification Queue (Rule 2) */}
-      <Card
-        title="Pending Partner Verifications (Rule 2)"
-        subtitle="Businesses and charities are strictly blocked from publishing until admin-approved. Every decision generates an audit_logs entry."
-        badge={
-          <span className={`badge ${pendingVerifications.length > 0 ? 'badge-amber' : 'badge-emerald'}`}>
-            {pendingVerifications.length} Pending Review
-          </span>
-        }
-        style={{ marginBottom: '2rem' }}
+      {/* Navigation Tabs */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '1rem',
+          borderBottom: '1px solid var(--color-border)',
+          marginBottom: '1.5rem',
+        }}
       >
-        {loading ? (
-          <Loader text="Loading pending verifications..." />
-        ) : (
-          <Table
-            columns={verificationColumns}
-            data={pendingVerifications}
-            emptyMessage="All partner organizations have been reviewed. No pending verifications!"
-          />
-        )}
-      </Card>
+        <button
+          onClick={() => setActiveAdminTab('verifications')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeAdminTab === 'verifications' ? '3px solid var(--color-primary)' : '3px solid transparent',
+            color: activeAdminTab === 'verifications' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <ShieldCheck size={18} />
+          Partner Verifications ({pendingVerifications.length})
+        </button>
 
-      {/* Campaign Approvals Queue (Rule 3) */}
-      <Card
-        title="Campaign Approval Queue (Rule 3)"
-        subtitle="Charity and animal welfare relief campaigns must receive Admin approval before going public"
-        badge={<span className="badge badge-sky">{pendingCampaigns.length} Review</span>}
-        style={{ marginBottom: '2rem' }}
-      >
-        <Table
-          columns={campaignColumns}
-          data={pendingCampaigns}
-          emptyMessage="No campaigns pending review."
-        />
-      </Card>
+        <button
+          onClick={() => setActiveAdminTab('campaigns')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeAdminTab === 'campaigns' ? '3px solid var(--color-primary)' : '3px solid transparent',
+            color: activeAdminTab === 'campaigns' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <ClipboardList size={18} />
+          Campaign Approvals ({pendingCampaigns.length})
+        </button>
+
+        <button
+          onClick={() => setActiveAdminTab('partnerships')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeAdminTab === 'partnerships' ? '3px solid var(--color-primary)' : '3px solid transparent',
+            color: activeAdminTab === 'partnerships' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <Handshake size={18} />
+          CSR Partnership Monitoring ({adminPartnerships.length})
+        </button>
+      </div>
+
+      {/* Tab: Organization Verification Queue (Rule 2) */}
+      {activeAdminTab === 'verifications' && (
+        <Card
+          title="Pending Partner Verifications (Rule 2)"
+          subtitle="Businesses and charities are strictly blocked from publishing until admin-approved. Every decision generates an audit_logs entry."
+          badge={
+            <span className={`badge ${pendingVerifications.length > 0 ? 'badge-amber' : 'badge-emerald'}`}>
+              {pendingVerifications.length} Pending Review
+            </span>
+          }
+        >
+          {loading ? (
+            <Loader text="Loading pending verifications..." />
+          ) : (
+            <Table
+              columns={verificationColumns}
+              data={pendingVerifications}
+              emptyMessage="All partner organizations have been reviewed. No pending verifications!"
+            />
+          )}
+        </Card>
+      )}
+
+      {/* Tab: Campaign Approvals Queue (Rule 3) */}
+      {activeAdminTab === 'campaigns' && (
+        <Card
+          title="Campaign Approval Queue (Rule 3)"
+          subtitle="Charity and animal welfare relief campaigns must receive Admin approval before going public"
+          badge={<span className="badge badge-sky">{pendingCampaigns.length} Review</span>}
+        >
+          <Table
+            columns={campaignColumns}
+            data={pendingCampaigns}
+            emptyMessage="No campaigns pending review."
+          />
+        </Card>
+      )}
+
+      {/* Tab: CSR Partnership Monitoring (Main Innovation) */}
+      {activeAdminTab === 'partnerships' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Innovation Educational & Oversight Banner */}
+          <div
+            style={{
+              backgroundColor: '#f5f3ff',
+              border: '1px solid #ddd6fe',
+              borderRadius: 'var(--radius-md)',
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              gap: '1rem',
+              alignItems: 'flex-start',
+            }}
+          >
+            <Sparkles size={28} style={{ color: '#7c3aed', flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#4c1d95' }}>
+                  CSR Business-to-Charity Partnership Governance
+                </h3>
+                <span className="badge badge-purple" style={{ fontSize: '0.7rem' }}>
+                  Platform Innovation Oversight
+                </span>
+              </div>
+              <p style={{ fontSize: '0.875rem', color: '#5b21b6', margin: '0.4rem 0 0.5rem 0', lineHeight: 1.5 }}>
+                Monitor corporate sponsorship contracts across FoodBridge. Ensure agreed terms remain immutable once agreed, verify that promotional recognition is locked until confirmed delivery, and audit negotiation threads for ethical compliance.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<RefreshCw size={14} />}
+              onClick={loadPartnerships}
+              loading={loadingPartnerships}
+            >
+              Refresh
+            </Button>
+          </div>
+
+          {/* Metrics */}
+          <div className="grid grid-cols-4 gap-4">
+            <Card>
+              <div className="text-xs text-muted">Total Partnerships</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{adminPartnerships.length}</div>
+            </Card>
+            <Card>
+              <div className="text-xs text-muted">Active Negotiations</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#d97706' }}>
+                {adminPartnerships.filter((p) => p.status === 'PROPOSED' || p.status === 'COUNTERED').length}
+              </div>
+            </Card>
+            <Card>
+              <div className="text-xs text-muted">Terms Locked & Agreed</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0284c7' }}>
+                {adminPartnerships.filter((p) => p.status === 'AGREED' || p.status === 'DELIVERED').length}
+              </div>
+            </Card>
+            <Card>
+              <div className="text-xs text-muted">Completed & Recognized</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669' }}>
+                {adminPartnerships.filter((p) => p.status === 'COMPLETED').length}
+              </div>
+            </Card>
+          </div>
+
+          {/* Filter Pills */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {['ALL', 'PROPOSED', 'COUNTERED', 'AGREED', 'DELIVERED', 'COMPLETED'].map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setAdminPartnershipFilter(filter)}
+                style={{
+                  padding: '0.4rem 0.85rem',
+                  borderRadius: '999px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  border: '1px solid',
+                  cursor: 'pointer',
+                  borderColor: adminPartnershipFilter === filter ? 'var(--color-primary)' : 'var(--color-border)',
+                  backgroundColor: adminPartnershipFilter === filter ? 'var(--color-primary)' : '#fff',
+                  color: adminPartnershipFilter === filter ? '#fff' : 'var(--color-text-muted)',
+                }}
+              >
+                {filter === 'ALL' ? 'All Statuses' : filter}
+              </button>
+            ))}
+          </div>
+
+          {/* Table */}
+          <Card
+            title="All Corporate Sponsorship Partnerships"
+            subtitle="Live status, locked terms, and recognition activation states across all campaigns."
+          >
+            {loadingPartnerships ? (
+              <Loader message="Loading CSR partnerships..." />
+            ) : adminPartnerships.filter((p) => {
+                if (adminPartnershipFilter === 'ALL') return true
+                return p.status === adminPartnershipFilter
+              }).length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                <Handshake size={44} style={{ color: '#cbd5e1', margin: '0 auto 0.75rem auto' }} />
+                <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                  No partnerships found in this status
+                </div>
+              </div>
+            ) : (
+              <Table
+                columns={adminPartnershipColumns}
+                data={adminPartnerships.filter((p) => {
+                  if (adminPartnershipFilter === 'ALL') return true
+                  return p.status === adminPartnershipFilter
+                })}
+                emptyMessage="No partnerships recorded."
+              />
+            )}
+          </Card>
+        </div>
+      )}
 
       {/* Organization Review & Document Modal */}
       <Modal
@@ -807,6 +1139,128 @@ export default function AdminDashboard() {
             </Button>
           </div>
         </form>
+      </Modal>
+      {/* Modal: Admin CSR Partnership Audit & Inspection */}
+      <Modal
+        isOpen={isAdminPartnershipModalOpen}
+        onClose={() => setIsAdminPartnershipModalOpen(false)}
+        title={selectedAdminPartnership ? `Audit Partnership: ${selectedAdminPartnership.campaignTitle}` : 'Partnership Audit'}
+        subtitle={
+          selectedAdminPartnership
+            ? `Sponsor: ${selectedAdminPartnership.businessName} • Charity: ${selectedAdminPartnership.charityName} • District: ${selectedAdminPartnership.campaignDistrict || 'Rural'}`
+            : ''
+        }
+        maxWidth="850px"
+      >
+        {selectedAdminPartnership && (
+          <div>
+            {/* Visual Status Timeline */}
+            <PartnershipTimeline
+              currentStatus={selectedAdminPartnership.status}
+              agreedTermsSnapshot={selectedAdminPartnership.agreedTermsSnapshot}
+              recognitionActive={selectedAdminPartnership.recognitionActive}
+              agreedRecognition={
+                selectedAdminPartnership.agreedRecognition || selectedAdminPartnership.requestedRecognition
+              }
+            />
+
+            {/* Audit Milestone Timestamps */}
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem 1.25rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', marginBottom: '0.5rem', color: '#0f172a' }}>
+                Contract Audit Trail & Milestone History
+              </div>
+              <div className="grid grid-cols-3 gap-4" style={{ fontSize: '0.8rem' }}>
+                <div>
+                  <span className="text-muted">Proposed At:</span>
+                  <div>{selectedAdminPartnership.createdAt ? new Date(selectedAdminPartnership.createdAt).toLocaleString() : 'N/A'}</div>
+                </div>
+                <div>
+                  <span className="text-muted">Terms Locked (Agreed At):</span>
+                  <div>{selectedAdminPartnership.agreedAt ? new Date(selectedAdminPartnership.agreedAt).toLocaleString() : 'Not agreed yet'}</div>
+                </div>
+                <div>
+                  <span className="text-muted">Support Delivered:</span>
+                  <div>{selectedAdminPartnership.deliveredAt ? new Date(selectedAdminPartnership.deliveredAt).toLocaleString() : 'Pending delivery'}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4" style={{ fontSize: '0.8rem', marginTop: '0.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem' }}>
+                <div>
+                  <span className="text-muted">Receipt Verified & Completed:</span>
+                  <div>{selectedAdminPartnership.completedAt ? new Date(selectedAdminPartnership.completedAt).toLocaleString() : 'Pending confirmation'}</div>
+                </div>
+                <div>
+                  <span className="text-muted">Promotional Recognition Status:</span>
+                  <div style={{ fontWeight: 700, color: selectedAdminPartnership.recognitionActive ? '#059669' : '#d97706' }}>
+                    {selectedAdminPartnership.recognitionActive ? 'ACTIVE (Verified Badges Live)' : 'LOCKED (Gated until receipt)'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Locked Immutable Agreement Snapshot */}
+            {selectedAdminPartnership.agreedTermsSnapshot && (
+              <div
+                style={{
+                  backgroundColor: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800, color: '#166534', marginBottom: '0.5rem' }}>
+                  <Lock size={15} />
+                  <span>Locked Immutable Agreement Snapshot</span>
+                </div>
+                <pre
+                  style={{
+                    backgroundColor: '#fff',
+                    padding: '0.75rem',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.75rem',
+                    overflowX: 'auto',
+                    border: '1px solid #86efac',
+                    color: '#14532d',
+                  }}
+                >
+                  {(() => {
+                    try {
+                      return JSON.stringify(JSON.parse(selectedAdminPartnership.agreedTermsSnapshot), null, 2)
+                    } catch {
+                      return selectedAdminPartnership.agreedTermsSnapshot
+                    }
+                  })()}
+                </pre>
+              </div>
+            )}
+
+            {/* Negotiation Message Thread for Audit */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', marginBottom: '0.75rem', color: '#0f172a' }}>
+                Complete Negotiation Message Log ({selectedAdminPartnership.messages?.length || 0} messages)
+              </div>
+              <PartnershipMessageThread
+                messages={selectedAdminPartnership.messages || []}
+                currentUserRole="ADMIN"
+                disabled={true}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="outline" onClick={() => setIsAdminPartnershipModalOpen(false)}>
+                Close Audit View
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

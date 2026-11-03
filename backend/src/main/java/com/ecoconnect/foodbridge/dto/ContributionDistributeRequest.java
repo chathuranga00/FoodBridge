@@ -22,3 +22,4 @@ public class ContributionDistributeRequest {
 
     private LocalDate distributionDate;
 }
+

@@ -96,5 +96,22 @@ public class EmailService {
 
         notificationRepository.save(notification);
     }
+
+    @Transactional
+    public void sendInAppNotification(User recipient, String title, String message, String type, UUID refId, String refType) {
+        log.info("[NOTIFICATION DISPATCH] To: {} | Title: {} | Type: {}", recipient.getEmail(), title, type);
+
+        Notification notification = Notification.builder()
+                .user(recipient)
+                .title(title)
+                .message(message)
+                .type(type)
+                .referenceId(refId)
+                .referenceType(refType)
+                .isRead(false)
+                .build();
+
+        notificationRepository.save(notification);
+    }
 }
 

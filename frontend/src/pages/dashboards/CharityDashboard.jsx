@@ -28,6 +28,13 @@ import {
   Eye,
   Calendar,
   Gift,
+  Handshake,
+  Lock,
+  MessageSquare,
+  Sparkles,
+  RotateCcw,
+  Check,
+  Truck,
 } from 'lucide-react'
 import Card from '../../components/common/Card'
 import Button from '../../components/common/Button'
@@ -37,7 +44,9 @@ import Input from '../../components/common/Input'
 import Select from '../../components/common/Select'
 import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
-import { profileApi, foodListingApi, foodRescueApi, campaignApi, contributionApi } from '../../api/client'
+import PartnershipTimeline from '../../components/common/PartnershipTimeline'
+import PartnershipMessageThread from '../../components/common/PartnershipMessageThread'
+import { profileApi, foodListingApi, foodRescueApi, campaignApi, contributionApi, partnershipApi } from '../../api/client'
 import { SRI_LANKA_DISTRICTS, CAMPAIGN_NEED_TYPES } from '../../utils/constants'
 
 export default function CharityDashboard() {
@@ -111,6 +120,31 @@ export default function CharityDashboard() {
   })
   const [submittingDistribute, setSubmittingDistribute] = useState(false)
   const [viewEvidenceContribution, setViewEvidenceContribution] = useState(null)
+
+  // CSR Business-to-Charity Partnerships State
+  const [partnerships, setPartnerships] = useState([])
+  const [loadingPartnerships, setLoadingPartnerships] = useState(false)
+  const [selectedPartnership, setSelectedPartnership] = useState(null)
+  const [isPartnershipDetailsOpen, setIsPartnershipDetailsOpen] = useState(false)
+  const [partnershipStatusFilter, setPartnershipStatusFilter] = useState('ALL')
+  const [isCounterModalOpen, setIsCounterModalOpen] = useState(false)
+  const [submittingCounter, setSubmittingCounter] = useState(false)
+  const [counterForm, setCounterForm] = useState({
+    message: '',
+    counterContributionType: '',
+    counterMonetaryAmount: '',
+    counterQuantity: '',
+    counterUnit: '',
+    counterItemDescription: '',
+    counterRecognition: '',
+  })
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false)
+  const [submittingComplete, setSubmittingComplete] = useState(false)
+  const [completeForm, setCompleteForm] = useState({
+    completionNotes: '',
+    fieldProofUrl: '',
+  })
+  const [sendingThreadMessage, setSendingThreadMessage] = useState(false)
 
   // Request Form State
   const [requestForm, setRequestForm] = useState({
@@ -200,20 +234,170 @@ export default function CharityDashboard() {
     }
   }
 
+  const loadPartnerships = async () => {
+    try {
+      setLoadingPartnerships(true)
+      const res = await partnershipApi.getMyCharityPartnerships()
+      setPartnerships(res.data || [])
+    } catch (err) {
+      console.error('Error fetching charity partnerships', err)
+    } finally {
+      setLoadingPartnerships(false)
+    }
+  }
+
   const loadFeedAndRequests = async () => {
     try {
-      const [availableRes, requestsRes, campaignsRes, contributionsRes] = await Promise.all([
+      const [availableRes, requestsRes, campaignsRes, contributionsRes, partnershipsRes] = await Promise.all([
         foodListingApi.getAvailable(),
         foodRescueApi.getCharityRequests(),
         campaignApi.getMyCampaigns(),
         contributionApi.getCharityContributions(),
+        partnershipApi.getMyCharityPartnerships(),
       ])
       setAvailableListings(availableRes.data || [])
       setMyRequests(requestsRes.data || [])
       setCampaigns(campaignsRes.data || [])
       setIncomingContributions(contributionsRes.data || [])
+      setPartnerships(partnershipsRes.data || [])
     } catch (err) {
       console.error('Error fetching available listings, requests, campaigns, or contributions', err)
+    }
+  }
+
+  const handleViewPartnershipDetails = async (partnership) => {
+    try {
+      const res = await partnershipApi.getPartnershipById(partnership.id)
+      setSelectedPartnership(res.data)
+      setIsPartnershipDetailsOpen(true)
+    } catch (err) {
+      setSelectedPartnership(partnership)
+      setIsPartnershipDetailsOpen(true)
+    }
+  }
+
+  const refreshSelectedPartnership = async (id) => {
+    try {
+      const res = await partnershipApi.getPartnershipById(id)
+      setSelectedPartnership(res.data)
+      loadPartnerships()
+      loadCampaigns()
+      loadContributions()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleSendThreadMessage = async (msgText) => {
+    if (!selectedPartnership) return
+    setSendingThreadMessage(true)
+    try {
+      await partnershipApi.postMessage(selectedPartnership.id, { message: msgText })
+      showToast('Message sent to business partner!', 'success')
+      await refreshSelectedPartnership(selectedPartnership.id)
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to send message', 'error')
+    } finally {
+      setSendingThreadMessage(false)
+    }
+  }
+
+  const handleAcceptTerms = async (partnershipId) => {
+    if (!window.confirm('Accept agreed partnership terms? This will lock the terms as immutable.')) return
+    try {
+      await partnershipApi.acceptPartnership(partnershipId, { confirmationNotes: 'Terms agreed by charity representative.' })
+      showToast('Partnership terms AGREED and locked! Status updated to AGREED.', 'success')
+      await refreshSelectedPartnership(partnershipId)
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to accept terms', 'error')
+    }
+  }
+
+  const handleDeclineProposal = async (partnershipId) => {
+    const reason = window.prompt('Please provide a reason for declining this proposal:')
+    if (!reason) return
+    try {
+      await partnershipApi.declinePartnership(partnershipId, { reason })
+      showToast('Partnership declined.', 'info')
+      await refreshSelectedPartnership(partnershipId)
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to decline proposal', 'error')
+    }
+  }
+
+  const handleOpenCounterModal = (partnership) => {
+    setSelectedPartnership(partnership)
+    setCounterForm({
+      message: '',
+      counterContributionType: partnership.contributionType || 'MONETARY_PLEDGE',
+      counterMonetaryAmount: partnership.monetaryAmount || '',
+      counterQuantity: partnership.quantity || '',
+      counterUnit: partnership.unit || '',
+      counterItemDescription: partnership.itemDescription || '',
+      counterRecognition: partnership.requestedRecognition || '',
+    })
+    setIsCounterModalOpen(true)
+  }
+
+  const handleCounterSubmit = async (e) => {
+    e.preventDefault()
+    if (!counterForm.message) {
+      showToast('Please provide a message explaining your counter-proposal.', 'error')
+      return
+    }
+    setSubmittingCounter(true)
+    try {
+      const payload = {
+        message: counterForm.message,
+        counterContributionType: counterForm.counterContributionType,
+        counterMonetaryAmount:
+          counterForm.counterContributionType === 'MONETARY_PLEDGE' && counterForm.counterMonetaryAmount
+            ? parseFloat(counterForm.counterMonetaryAmount)
+            : null,
+        counterQuantity:
+          counterForm.counterContributionType !== 'MONETARY_PLEDGE' && counterForm.counterQuantity
+            ? parseInt(counterForm.counterQuantity)
+            : null,
+        counterUnit: counterForm.counterUnit,
+        counterItemDescription: counterForm.counterItemDescription,
+        counterRecognition: counterForm.counterRecognition,
+      }
+      await partnershipApi.counterPartnership(selectedPartnership.id, payload)
+      showToast('Counter-proposal sent to business successfully!', 'success')
+      setIsCounterModalOpen(false)
+      await refreshSelectedPartnership(selectedPartnership.id)
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to submit counter-proposal', 'error')
+    } finally {
+      setSubmittingCounter(false)
+    }
+  }
+
+  const handleOpenCompleteModal = (partnership) => {
+    setSelectedPartnership(partnership)
+    setCompleteForm({ completionNotes: '', fieldProofUrl: '' })
+    setIsCompleteModalOpen(true)
+  }
+
+  const handleCompleteSubmit = async (e) => {
+    e.preventDefault()
+    if (!completeForm.completionNotes) {
+      showToast('Please enter receipt verification notes.', 'error')
+      return
+    }
+    setSubmittingComplete(true)
+    try {
+      await partnershipApi.completePartnership(selectedPartnership.id, {
+        completionNotes: completeForm.completionNotes,
+        fieldProofUrl: completeForm.fieldProofUrl || null,
+      })
+      showToast('Receipt confirmed! Partnership is COMPLETED and promotional recognition is now ACTIVE!', 'success')
+      setIsCompleteModalOpen(false)
+      await refreshSelectedPartnership(selectedPartnership.id)
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to complete partnership', 'error')
+    } finally {
+      setSubmittingComplete(false)
     }
   }
 
@@ -649,6 +833,110 @@ export default function CharityDashboard() {
     },
   ]
 
+  const partnershipColumns = [
+    {
+      key: 'businessName',
+      label: 'Corporate Sponsor & Brand',
+      render: (val, row) => (
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Building2 size={14} style={{ color: '#0284c7' }} />
+            <span>{val}</span>
+          </div>
+          <div className="text-xs text-muted" style={{ display: 'flex', gap: '0.4rem', marginTop: '2px' }}>
+            <span>Campaign: <strong>{row.campaignTitle}</strong></span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'contributionType',
+      label: 'Agreed / Proposed Terms',
+      render: (type, row) => (
+        <div>
+          <span
+            className={`badge ${
+              type === 'MONETARY_PLEDGE' ? 'badge-sky' : type === 'FOOD_ITEMS' ? 'badge-amber' : 'badge-emerald'
+            }`}
+            style={{ fontSize: '0.7rem' }}
+          >
+            {type === 'MONETARY_PLEDGE' ? 'Money Pledge' : type === 'FOOD_ITEMS' ? 'Food Supplies' : 'Other Resources'}
+          </span>
+          <div style={{ fontWeight: 700, fontSize: '0.875rem', marginTop: '2px' }}>
+            {type === 'MONETARY_PLEDGE' && row.monetaryAmount
+              ? `Rs. ${Number(row.monetaryAmount).toLocaleString()}`
+              : `${row.quantity} ${row.unit || 'units'}`}
+          </div>
+          {row.itemDescription && (
+            <div className="text-xs text-muted" style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {row.itemDescription}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Workflow Status',
+      render: (status) => {
+        let badgeClass = 'badge-amber'
+        if (status === 'AGREED') badgeClass = 'badge-sky'
+        else if (status === 'DELIVERED') badgeClass = 'badge-purple'
+        else if (status === 'COMPLETED') badgeClass = 'badge-emerald'
+        else if (status === 'DECLINED' || status === 'CANCELLED') badgeClass = 'badge-rose'
+        return <span className={`badge ${badgeClass}`}>{status}</span>
+      },
+    },
+    {
+      key: 'recognitionActive',
+      label: 'Promotional Recognition',
+      render: (active, row) => {
+        if (active) {
+          return (
+            <div>
+              <span className="badge badge-emerald" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                <Award size={12} /> Active ({row.agreedRecognition || row.requestedRecognition || 'Official Partner'})
+              </span>
+              <div className="text-xs text-muted" style={{ marginTop: '2px' }}>Publicly Visible</div>
+            </div>
+          )
+        }
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#64748b', fontSize: '0.75rem' }}>
+            <Lock size={12} />
+            <span>Locked (Awaiting your receipt confirmation)</span>
+          </div>
+        )
+      },
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_, row) => (
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          <Button
+            size="sm"
+            variant="outline"
+            icon={<MessageSquare size={13} />}
+            onClick={() => handleViewPartnershipDetails(row)}
+          >
+            Review & Thread
+          </Button>
+          {row.status === 'DELIVERED' && (
+            <Button
+              size="sm"
+              variant="primary"
+              icon={<CheckCircle2 size={13} />}
+              onClick={() => handleOpenCompleteModal(row)}
+            >
+              Confirm Receipt
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ]
+
   const totalRescuedBatches = myRequests.filter((r) => r.status === 'COLLECTED').length
   const activeReservedBatches = myRequests.filter((r) => r.status === 'ACCEPTED').length
 
@@ -930,6 +1218,53 @@ export default function CharityDashboard() {
               }}
             >
               {incomingContributions.filter((c) => c.status === 'PLEDGED').length} Pledged
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('partnerships')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'partnerships' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
+            color: activeTab === 'partnerships' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <Handshake size={18} />
+          CSR Partnerships ({partnerships.length})
+          {partnerships.filter(
+            (p) =>
+              p.status === 'PROPOSED' ||
+              (p.status === 'COUNTERED' && p.lastCounterByRole === 'BUSINESS') ||
+              p.status === 'DELIVERED'
+          ).length > 0 && (
+            <span
+              style={{
+                backgroundColor: '#7c3aed',
+                color: '#fff',
+                fontSize: '0.75rem',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '999px',
+                fontWeight: 700,
+              }}
+            >
+              {
+                partnerships.filter(
+                  (p) =>
+                    p.status === 'PROPOSED' ||
+                    (p.status === 'COUNTERED' && p.lastCounterByRole === 'BUSINESS') ||
+                    p.status === 'DELIVERED'
+                ).length
+              }{' '}
+              action needed
             </span>
           )}
         </button>
@@ -1371,6 +1706,147 @@ export default function CharityDashboard() {
                   if (contributionStatusFilter === 'ALL') return true
                   return c.status === contributionStatusFilter
                 })}
+              />
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Tab 5: CSR Partnerships Innovation */}
+      {activeTab === 'partnerships' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Main Innovation Educational Banner */}
+          <div
+            style={{
+              backgroundColor: '#f5f3ff',
+              border: '1px solid #ddd6fe',
+              borderRadius: 'var(--radius-md)',
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              gap: '1rem',
+              alignItems: 'flex-start',
+            }}
+          >
+            <Sparkles size={28} style={{ color: '#7c3aed', flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#4c1d95' }}>
+                  Business-to-Charity Partnership Management
+                </h3>
+                <span className="badge badge-purple" style={{ fontSize: '0.7rem' }}>
+                  Main Innovation
+                </span>
+              </div>
+              <p style={{ fontSize: '0.875rem', color: '#5b21b6', margin: '0.4rem 0 0.5rem 0', lineHeight: 1.5 }}>
+                Review incoming corporate sponsorship proposals, negotiate terms collaboratively, lock binding agreements, and activate public promotional recognition once support is received.
+              </p>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  color: '#9f1239',
+                  backgroundColor: '#ffe4e6',
+                  padding: '0.3rem 0.75rem',
+                  borderRadius: '999px',
+                }}
+              >
+                <Lock size={13} />
+                Corporate recognition badges are locked and will only activate after you confirm delivery receipt.
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<Clock size={14} />}
+              onClick={loadPartnerships}
+              loading={loadingPartnerships}
+            >
+              Refresh
+            </Button>
+          </div>
+
+          {/* Metrics */}
+          <div className="grid grid-cols-4 gap-4">
+            <Card>
+              <div className="text-xs text-muted">Incoming Proposals</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#d97706' }}>
+                {partnerships.filter((p) => p.status === 'PROPOSED').length}
+              </div>
+            </Card>
+            <Card>
+              <div className="text-xs text-muted">In Negotiation</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#7c3aed' }}>
+                {partnerships.filter((p) => p.status === 'COUNTERED').length}
+              </div>
+            </Card>
+            <Card>
+              <div className="text-xs text-muted">Agreed / Delivered</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0284c7' }}>
+                {partnerships.filter((p) => p.status === 'AGREED' || p.status === 'DELIVERED').length}
+              </div>
+            </Card>
+            <Card>
+              <div className="text-xs text-muted">Completed & Recognized</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669' }}>
+                {partnerships.filter((p) => p.status === 'COMPLETED').length}
+              </div>
+            </Card>
+          </div>
+
+          {/* Filter Bar */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {['ALL', 'PROPOSED', 'COUNTERED', 'AGREED', 'DELIVERED', 'COMPLETED'].map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setPartnershipStatusFilter(filter)}
+                style={{
+                  padding: '0.4rem 0.85rem',
+                  borderRadius: '999px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  border: '1px solid',
+                  cursor: 'pointer',
+                  borderColor: partnershipStatusFilter === filter ? 'var(--color-primary)' : 'var(--color-border)',
+                  backgroundColor: partnershipStatusFilter === filter ? 'var(--color-primary)' : '#fff',
+                  color: partnershipStatusFilter === filter ? '#fff' : 'var(--color-text-muted)',
+                }}
+              >
+                {filter === 'ALL' ? 'All Partnerships' : filter}
+              </button>
+            ))}
+          </div>
+
+          {/* Table */}
+          <Card
+            title="Sponsorship Proposals & Agreements"
+            subtitle="Engage with verified business donors to fund and equip your community campaigns."
+          >
+            {loadingPartnerships ? (
+              <Loader message="Loading CSR partnerships..." />
+            ) : partnerships.filter((p) => {
+                if (partnershipStatusFilter === 'ALL') return true
+                return p.status === partnershipStatusFilter
+              }).length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                <Handshake size={44} style={{ color: '#cbd5e1', margin: '0 auto 0.75rem auto' }} />
+                <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                  No partnerships found in this status
+                </div>
+                <p className="text-xs text-muted" style={{ maxWidth: '420px', margin: '0 auto' }}>
+                  When verified businesses propose collaborations for your campaigns, they will be listed here for your review and negotiation.
+                </p>
+              </div>
+            ) : (
+              <Table
+                columns={partnershipColumns}
+                data={partnerships.filter((p) => {
+                  if (partnershipStatusFilter === 'ALL') return true
+                  return p.status === partnershipStatusFilter
+                })}
+                emptyMessage="No partnerships recorded."
               />
             )}
           </Card>
@@ -1971,6 +2447,361 @@ export default function CharityDashboard() {
             </div>
           </div>
         )}
+      </Modal>
+      {/* Modal: Partnership Details, Timeline & Negotiation Thread */}
+      <Modal
+        isOpen={isPartnershipDetailsOpen}
+        onClose={() => setIsPartnershipDetailsOpen(false)}
+        title={selectedPartnership ? `Partnership: ${selectedPartnership.campaignTitle}` : 'Partnership Details'}
+        subtitle={selectedPartnership ? `Corporate Sponsor: ${selectedPartnership.businessName} • Campaign: ${selectedPartnership.campaignTitle}` : ''}
+        maxWidth="850px"
+      >
+        {selectedPartnership && (
+          <div>
+            {/* Visual Status Timeline */}
+            <PartnershipTimeline
+              currentStatus={selectedPartnership.status}
+              agreedTermsSnapshot={selectedPartnership.agreedTermsSnapshot}
+              recognitionActive={selectedPartnership.recognitionActive}
+              agreedRecognition={selectedPartnership.agreedRecognition || selectedPartnership.requestedRecognition}
+            />
+
+            {/* If agreed terms snapshot exists, display locked snapshot */}
+            {selectedPartnership.agreedTermsSnapshot ? (
+              <div
+                style={{
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0f172a', fontWeight: 800 }}>
+                    <Lock size={16} style={{ color: '#0284c7' }} />
+                    <span>Locked Immutable Agreement Terms</span>
+                  </div>
+                  <span className="badge badge-sky">Legally Binding</span>
+                </div>
+                <div className="grid grid-cols-3 gap-4" style={{ fontSize: '0.85rem' }}>
+                  <div>
+                    <span className="text-muted">Contribution:</span>
+                    <div style={{ fontWeight: 700 }}>
+                      {selectedPartnership.contributionType === 'MONETARY_PLEDGE'
+                        ? `Rs. ${Number(selectedPartnership.monetaryAmount).toLocaleString()}`
+                        : `${selectedPartnership.quantity} ${selectedPartnership.unit || 'units'}`}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted">Description:</span>
+                    <div style={{ fontWeight: 600 }}>{selectedPartnership.itemDescription || 'Direct financial sponsorship'}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted">Agreed Recognition:</span>
+                    <div style={{ fontWeight: 700, color: '#7c3aed' }}>
+                      {selectedPartnership.agreedRecognition || selectedPartnership.requestedRecognition || 'Official CSR Partner'}
+                    </div>
+                  </div>
+                </div>
+                {selectedPartnership.agreedAt && (
+                  <div className="text-xs text-muted" style={{ marginTop: '0.75rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem' }}>
+                    Agreed and locked on: {new Date(selectedPartnership.agreedAt).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Pending / Countered Terms Box */
+              <div
+                style={{
+                  backgroundColor: '#fdf4ff',
+                  border: '1px solid #f0abfc',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#86198f', marginBottom: '0.5rem' }}>
+                  Current Proposed Sponsorship Terms
+                </div>
+                <div className="grid grid-cols-3 gap-4" style={{ fontSize: '0.85rem' }}>
+                  <div>
+                    <span className="text-muted">Type & Amount:</span>
+                    <div style={{ fontWeight: 700 }}>
+                      {selectedPartnership.contributionType === 'MONETARY_PLEDGE'
+                        ? `Rs. ${Number(selectedPartnership.monetaryAmount).toLocaleString()}`
+                        : `${selectedPartnership.quantity} ${selectedPartnership.unit || 'units'}`}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted">Items:</span>
+                    <div style={{ fontWeight: 600 }}>{selectedPartnership.itemDescription || 'Direct sponsorship'}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted">Requested Recognition:</span>
+                    <div style={{ fontWeight: 700, color: '#7c3aed' }}>
+                      {selectedPartnership.requestedRecognition || 'Official Sponsor'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Inbound Proposal / Counter Action Box for Charity */}
+            {(selectedPartnership.status === 'PROPOSED' ||
+              (selectedPartnership.status === 'COUNTERED' && selectedPartnership.lastCounterByRole === 'BUSINESS')) && (
+              <div
+                style={{
+                  backgroundColor: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, color: '#92400e', fontSize: '0.95rem' }}>
+                    Action Needed on Sponsor Proposal
+                  </div>
+                  <div className="text-xs text-muted">
+                    Review terms above. You can accept to lock immutable agreement, counter-propose adjustments, or decline.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    icon={<Check size={14} />}
+                    onClick={() => handleAcceptTerms(selectedPartnership.id)}
+                  >
+                    Accept Terms
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    icon={<RotateCcw size={14} />}
+                    onClick={() => handleOpenCounterModal(selectedPartnership)}
+                  >
+                    Counter-Propose
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => handleDeclineProposal(selectedPartnership.id)}
+                  >
+                    Decline
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Delivery Confirmation Prompt for Charity */}
+            {selectedPartnership.status === 'DELIVERED' && (
+              <div
+                style={{
+                  backgroundColor: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, color: '#065f46', fontSize: '0.95rem' }}>
+                    Sponsor Marked Support as DELIVERED
+                  </div>
+                  <div className="text-xs text-muted">
+                    {selectedPartnership.deliveryNotes && (
+                      <span style={{ display: 'block', margin: '3px 0' }}>
+                        Dispatch Notes: <em>"{selectedPartnership.deliveryNotes}"</em>
+                      </span>
+                    )}
+                    Confirm receipt of funds or supplies to complete the partnership and activate promotional recognition.
+                  </div>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<CheckCircle2 size={14} />}
+                  onClick={() => handleOpenCompleteModal(selectedPartnership)}
+                >
+                  Confirm Receipt & Activate Badge
+                </Button>
+              </div>
+            )}
+
+            {/* Negotiation Message Thread */}
+            <PartnershipMessageThread
+              messages={selectedPartnership.messages || []}
+              currentUserRole="CHARITY"
+              onSendMessage={handleSendThreadMessage}
+              sending={sendingThreadMessage}
+              disabled={
+                selectedPartnership.status === 'COMPLETED' ||
+                selectedPartnership.status === 'DECLINED' ||
+                selectedPartnership.status === 'CANCELLED'
+              }
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <Button variant="outline" onClick={() => setIsPartnershipDetailsOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal: Charity Counter-Proposal */}
+      <Modal
+        isOpen={isCounterModalOpen}
+        onClose={() => setIsCounterModalOpen(false)}
+        title="Send Counter-Proposal to Sponsor"
+        subtitle={`Negotiate terms with ${selectedPartnership?.businessName || 'Business'}`}
+        maxWidth="650px"
+      >
+        <form onSubmit={handleCounterSubmit}>
+          <div className="grid grid-cols-2 gap-4" style={{ marginBottom: '1rem' }}>
+            <Select
+              label="Contribution Type"
+              required
+              options={[
+                { value: 'MONETARY_PLEDGE', label: 'Financial Sponsorship (LKR)' },
+                { value: 'FOOD_ITEMS', label: 'Food & Nutrition Supplies' },
+                { value: 'OTHER_RESOURCES', label: 'Equipment or Other Resources' },
+              ]}
+              value={counterForm.counterContributionType}
+              onChange={(e) => setCounterForm({ ...counterForm, counterContributionType: e.target.value })}
+            />
+            {counterForm.counterContributionType === 'MONETARY_PLEDGE' ? (
+              <Input
+                label="Monetary Amount (Rs.)"
+                type="number"
+                step="0.01"
+                min="100"
+                value={counterForm.counterMonetaryAmount}
+                onChange={(e) => setCounterForm({ ...counterForm, counterMonetaryAmount: e.target.value })}
+                placeholder="e.g. 75000.00"
+              />
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  label="Quantity"
+                  type="number"
+                  min="1"
+                  value={counterForm.counterQuantity}
+                  onChange={(e) => setCounterForm({ ...counterForm, counterQuantity: e.target.value })}
+                />
+                <Input
+                  label="Unit"
+                  value={counterForm.counterUnit}
+                  onChange={(e) => setCounterForm({ ...counterForm, counterUnit: e.target.value })}
+                  placeholder="kg / kits"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4" style={{ marginBottom: '1rem' }}>
+            <Input
+              label="Item Description"
+              value={counterForm.counterItemDescription}
+              onChange={(e) => setCounterForm({ ...counterForm, counterItemDescription: e.target.value })}
+              placeholder="e.g. 80 ration packs instead of 50"
+            />
+            <Input
+              label="Agreed Recognition Tier"
+              value={counterForm.counterRecognition}
+              onChange={(e) => setCounterForm({ ...counterForm, counterRecognition: e.target.value })}
+              placeholder="e.g. Platinum Partner"
+            />
+          </div>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <Textarea
+              label="Counter-Proposal Explanation Message"
+              required
+              rows={3}
+              value={counterForm.message}
+              onChange={(e) => setCounterForm({ ...counterForm, message: e.target.value })}
+              placeholder="Explain to the sponsor why adjustments are requested..."
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <Button type="button" variant="outline" onClick={() => setIsCounterModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" loading={submittingCounter}>
+              Send Counter-Proposal
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Confirm Receipt & Complete Partnership */}
+      <Modal
+        isOpen={isCompleteModalOpen}
+        onClose={() => setIsCompleteModalOpen(false)}
+        title="Confirm Receipt & Activate Corporate Recognition"
+        subtitle={`Verify receipt of support from ${selectedPartnership?.businessName || 'Business'}`}
+        maxWidth="600px"
+      >
+        <form onSubmit={handleCompleteSubmit}>
+          <div
+            style={{
+              backgroundColor: '#f5f3ff',
+              border: '1px solid #ddd6fe',
+              borderRadius: 'var(--radius-md)',
+              padding: '1rem',
+              marginBottom: '1.25rem',
+              fontSize: '0.85rem',
+              color: '#5b21b6',
+              lineHeight: 1.5,
+            }}
+          >
+            <strong>Main Innovation Milestone:</strong> Confirming receipt will transition this partnership to <strong>COMPLETED</strong>, automatically record the contribution towards campaign progress, and <strong>activate the agreed promotional recognition badge</strong> on the sponsor's profile and campaign page!
+          </div>
+
+          <Textarea
+            label="Receipt Verification Notes & Bank / Delivery Reference"
+            required
+            rows={4}
+            value={completeForm.completionNotes}
+            onChange={(e) => setCompleteForm({ ...completeForm, completionNotes: e.target.value })}
+            placeholder="e.g. Verified deposit in Commercial Bank account #BOC-99881. Or: 50 ration packs received in good order at Colombo distribution hub."
+            helper="Formal audit record of receipt verification."
+          />
+
+          <div style={{ marginTop: '1rem', marginBottom: '1.25rem' }}>
+            <Input
+              label="Field Proof / Receipt Image URL (Optional)"
+              value={completeForm.fieldProofUrl}
+              onChange={(e) => setCompleteForm({ ...completeForm, fieldProofUrl: e.target.value })}
+              placeholder="https://images.unsplash.com/... or receipt proof URL"
+              helper="Handover photo or stamped acknowledgement document."
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <Button type="button" variant="outline" onClick={() => setIsCompleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" icon={<CheckCircle2 size={15} />} loading={submittingComplete}>
+              Confirm Receipt & Activate Recognition
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   )

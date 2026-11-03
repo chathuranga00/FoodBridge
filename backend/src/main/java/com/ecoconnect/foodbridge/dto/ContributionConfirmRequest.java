@@ -13,3 +13,4 @@ public class ContributionConfirmRequest {
 
     private String notes;
 }
+
