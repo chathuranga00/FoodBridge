@@ -412,9 +412,12 @@ export default function BusinessDashboard() {
 
   // Synchronize route changes (sidebar clicks) to active tab & trigger loaders
   useEffect(() => {
-    const matchedTab = PATH_TO_TAB[location.pathname]
+    const cleanPath = (location.pathname || '').replace(/\/+$/, '')
+    const matchedTab = PATH_TO_TAB[cleanPath] || PATH_TO_TAB[location.pathname]
     if (matchedTab) {
       setActiveTab(matchedTab)
+      if (matchedTab === 'listings' || matchedTab === 'requests') loadListingsAndRequests()
+      if (matchedTab === 'grocery-offers' || matchedTab === 'redemptions') loadGroceryData()
       if (matchedTab === 'impact') loadBusinessImpact()
       if (matchedTab === 'promotions') loadPromotionsData()
       if (matchedTab === 'subscriptions') loadSubscriptionData()

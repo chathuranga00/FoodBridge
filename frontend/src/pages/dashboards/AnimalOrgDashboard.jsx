@@ -106,9 +106,11 @@ export default function AnimalOrgDashboard() {
 
   // Synchronize route changes (sidebar clicks) to active tab
   useEffect(() => {
-    const matchedTab = PATH_TO_TAB[location.pathname]
+    const cleanPath = (location.pathname || '').replace(/\/+$/, '')
+    const matchedTab = PATH_TO_TAB[cleanPath] || PATH_TO_TAB[location.pathname]
     if (matchedTab) {
       setActiveTab(matchedTab)
+      loadAllData()
     }
   }, [location.pathname])
   const [loading, setLoading] = useState(true)

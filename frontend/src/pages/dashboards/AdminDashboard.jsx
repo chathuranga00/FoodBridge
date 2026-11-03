@@ -432,13 +432,17 @@ export default function AdminDashboard() {
 
   // Synchronize route changes (sidebar clicks) to active tab & trigger respective loader
   useEffect(() => {
-    const tab = PATH_TO_TAB[location.pathname] || 'overview'
+    const cleanPath = (location.pathname || '').replace(/\/+$/, '')
+    const tab = PATH_TO_TAB[cleanPath] || PATH_TO_TAB[location.pathname] || 'overview'
     setActiveAdminTab(tab)
     if (tab === 'users') loadUsers()
     if (tab === 'verifications') loadPendingVerifications()
     if (tab === 'listings') loadListings()
     if (tab === 'campaigns') loadAllCampaigns()
-    if (tab === 'partnerships') loadContributions()
+    if (tab === 'partnerships') {
+      loadPartnerships()
+      loadContributions()
+    }
     if (tab === 'subscriptions') loadAdminSubscriptions()
     if (tab === 'impact') loadPlatformImpact()
     if (tab === 'audit_logs') loadAuditLogs()

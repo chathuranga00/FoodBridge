@@ -110,13 +110,34 @@ export default function DashboardLayout({ title = 'Dashboard' }) {
 
   const navItems = getNavItems()
   const isActive = (path) => {
-    if (location.pathname === path) return true
-    if (path === '/dashboard/admin/revenue' && location.pathname === '/dashboard/admin/subscriptions') return true
-    if (path === '/dashboard/admin/audit' && (location.pathname === '/dashboard/admin/audit_logs' || location.pathname === '/dashboard/admin/audit-logs')) return true
-    if (path === '/dashboard/charity/available-food' && location.pathname === '/dashboard/charity/browse') return true
-    if (path === '/dashboard/charity/requests' && location.pathname === '/dashboard/charity/my-requests') return true
-    if (path === '/dashboard/animal-welfare/feed-listings' && location.pathname === '/dashboard/animal-welfare/surplus-feed') return true
-    if (path === '/dashboard/business/redemptions' && location.pathname === '/dashboard/business/coupons') return true
+    const current = (location.pathname || '').replace(/\/+$/, '') || '/'
+    const target = (path || '').replace(/\/+$/, '') || '/'
+
+    if (current === target) return true
+
+    // Admin Aliases
+    if (target === '/dashboard/admin' && (current === '/dashboard/admin' || current === '/dashboard/admin/overview')) return true
+    if (target === '/dashboard/admin/revenue' && (current === '/dashboard/admin/subscriptions' || current === '/dashboard/admin/revenue')) return true
+    if (target === '/dashboard/admin/audit' && (current === '/dashboard/admin/audit_logs' || current === '/dashboard/admin/audit-logs' || current === '/dashboard/admin/audit')) return true
+    if (target === '/dashboard/admin/verifications' && (current === '/dashboard/admin/pending-verifications' || current === '/dashboard/admin/verifications')) return true
+    if (target === '/dashboard/admin/campaigns' && (current === '/dashboard/admin/approvals' || current === '/dashboard/admin/campaigns')) return true
+
+    // Charity Aliases
+    if (target === '/dashboard/charity' && (current === '/dashboard/charity' || current === '/dashboard/charity/overview')) return true
+    if (target === '/dashboard/charity/available-food' && (current === '/dashboard/charity/browse' || current === '/dashboard/charity/available-food')) return true
+    if (target === '/dashboard/charity/requests' && (current === '/dashboard/charity/my-requests' || current === '/dashboard/charity/requests')) return true
+
+    // Business Aliases
+    if (target === '/dashboard/business' && (current === '/dashboard/business' || current === '/dashboard/business/overview')) return true
+    if (target === '/dashboard/business/redemptions' && (current === '/dashboard/business/coupons' || current === '/dashboard/business/redemptions')) return true
+    if (target === '/dashboard/business/impact' && (current === '/dashboard/business/analytics' || current === '/dashboard/business/impact')) return true
+    if (target === '/dashboard/business/subscriptions' && (current === '/dashboard/business/revenue' || current === '/dashboard/business/subscriptions')) return true
+
+    // Animal Org Aliases
+    if (target === '/dashboard/animal-welfare' && (current === '/dashboard/animal-welfare' || current === '/dashboard/animal-welfare/overview')) return true
+    if (target === '/dashboard/animal-welfare/feed-listings' && (current === '/dashboard/animal-welfare/surplus-feed' || current === '/dashboard/animal-welfare/feed-listings')) return true
+    if (target === '/dashboard/animal-welfare/requirements' && (current === '/dashboard/animal-welfare/campaigns' || current === '/dashboard/animal-welfare/contributions' || current === '/dashboard/animal-welfare/requirements')) return true
+
     return false
   }
 

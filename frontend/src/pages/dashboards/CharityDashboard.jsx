@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import {
+  LayoutDashboard,
   Heart,
   ShoppingBag,
   Users,
@@ -58,6 +59,7 @@ export default function CharityDashboard() {
   const { showToast } = useToast()
 
   const TAB_TO_PATH = {
+    'overview': '/dashboard/charity',
     'browse': '/dashboard/charity/available-food',
     'my-requests': '/dashboard/charity/requests',
     'campaigns': '/dashboard/charity/campaigns',
@@ -68,8 +70,9 @@ export default function CharityDashboard() {
   }
 
   const PATH_TO_TAB = {
-    '/dashboard/charity': 'browse',
-    '/dashboard/charity/': 'browse',
+    '/dashboard/charity': 'overview',
+    '/dashboard/charity/': 'overview',
+    '/dashboard/charity/overview': 'overview',
     '/dashboard/charity/available-food': 'browse',
     '/dashboard/charity/browse': 'browse',
     '/dashboard/charity/requests': 'my-requests',
@@ -81,7 +84,7 @@ export default function CharityDashboard() {
     '/dashboard/charity/impact': 'impact',
   }
 
-  const [activeTab, setActiveTab] = useState(() => PATH_TO_TAB[window.location?.pathname] || 'browse')
+  const [activeTab, setActiveTab] = useState(() => PATH_TO_TAB[window.location?.pathname] || 'overview')
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId)
@@ -244,8 +247,22 @@ export default function CharityDashboard() {
         // If verified, fetch available listings and my requests
         if (res.data.verificationStatus === 'VERIFIED') {
           await loadFeedAndRequests()
+        } else {
+          // If pending verification, still load live available listings to view
+          try {
+            const availableRes = await foodListingApi.getAvailable()
+            setAvailableListings(availableRes.data || [])
+          } catch (e) {
+            console.warn('Failed to load available listings for unverified charity', e)
+          }
         }
       }
+      await Promise.allSettled([
+        loadCampaigns(),
+        loadContributions(),
+        loadPartnerships(),
+        loadVolunteerDrives(),
+      ])
     } catch (err) {
       console.error('Failed to load charity profile', err)
     } finally {
@@ -378,12 +395,27 @@ export default function CharityDashboard() {
 
   // Synchronize route changes (sidebar clicks) to active tab & trigger loaders
   useEffect(() => {
-    const matchedTab = PATH_TO_TAB[location.pathname]
-    if (matchedTab) {
-      setActiveTab(matchedTab)
-      if (matchedTab === 'impact') loadCharityImpact()
-      if (matchedTab === 'volunteers') loadVolunteerDrives()
-      if (matchedTab === 'partnerships') loadPartnerships()
+    const cleanPath = (location.pathname || '').replace(/\/+$/, '')
+    const matchedTab = PATH_TO_TAB[cleanPath] || PATH_TO_TAB[location.pathname] || 'overview'
+    setActiveTab(matchedTab)
+    if (matchedTab === 'overview') {
+      loadFeedAndRequests()
+      loadCampaigns()
+      loadContributions()
+      loadPartnerships()
+      loadVolunteerDrives()
+    } else if (matchedTab === 'browse' || matchedTab === 'my-requests') {
+      loadFeedAndRequests()
+    } else if (matchedTab === 'campaigns') {
+      loadCampaigns()
+    } else if (matchedTab === 'contributions') {
+      loadContributions()
+    } else if (matchedTab === 'partnerships') {
+      loadPartnerships()
+    } else if (matchedTab === 'volunteers') {
+      loadVolunteerDrives()
+    } else if (matchedTab === 'impact') {
+      loadCharityImpact()
     }
   }, [location.pathname])
 
@@ -639,7 +671,7 @@ export default function CharityDashboard() {
       showToast(`Request sent to ${selectedListing.businessName}! Status is PENDING restaurant approval.`, 'success')
       setIsRequestModalOpen(false)
       await loadFeedAndRequests()
-      setActiveTab('my-requests')
+      handleTabChange('my-requests')
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to submit food rescue request', 'error')
     } finally {
@@ -688,7 +720,7 @@ export default function CharityDashboard() {
         handoverInstructions: '',
       })
       await loadCampaigns()
-      setActiveTab('campaigns')
+      handleTabChange('campaigns')
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to create campaign', 'error')
     } finally {
@@ -1245,14 +1277,14 @@ export default function CharityDashboard() {
           <Button
             variant="primary"
             icon={<ShoppingBag size={16} />}
-            onClick={() => setActiveTab('browse')}
+            onClick={() => handleTabChange('browse')}
           >
             Browse Food Surplus
           </Button>
         </div>
       </div>
 
-      {/* Metrics */}
+      {/* Quick Metrics Bar */}
       <div className="grid grid-cols-4 gap-6" style={{ marginBottom: '2rem' }}>
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -1286,210 +1318,312 @@ export default function CharityDashboard() {
         </Card>
       </div>
 
-      {/* Tabs */}
+      {/* Navigation Tabs Bar */}
       <div
         style={{
           display: 'flex',
-          gap: '1rem',
+          gap: '0.5rem',
           borderBottom: '1px solid var(--color-border)',
           marginBottom: '1.5rem',
+          overflowX: 'auto',
+          whiteSpace: 'nowrap',
+          paddingBottom: '2px',
         }}
       >
-        <button
-          onClick={() => handleTabChange('browse')}
-          style={{
-            padding: '0.75rem 1.25rem',
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'browse' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
-            color: activeTab === 'browse' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <ShoppingBag size={18} />
-          Browse Available Food ({availableListings.length})
-        </button>
-
-        <button
-          onClick={() => handleTabChange('my-requests')}
-          style={{
-            padding: '0.75rem 1.25rem',
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'my-requests' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
-            color: activeTab === 'my-requests' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <Clock size={18} />
-          My Requests ({myRequests.length})
-          {activeReservedBatches > 0 && (
-            <span
-              style={{
-                backgroundColor: '#0284c7',
-                color: '#fff',
-                fontSize: '0.75rem',
-                padding: '0.1rem 0.45rem',
-                borderRadius: '999px',
-                fontWeight: 700,
-              }}
-            >
-              {activeReservedBatches} Ready
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => handleTabChange('campaigns')}
-          style={{
-            padding: '0.75rem 1.25rem',
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'campaigns' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
-            color: activeTab === 'campaigns' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <Heart size={18} />
-          Rural Relief Campaigns ({campaigns.length})
-        </button>
-
-        <button
-          onClick={() => handleTabChange('contributions')}
-          style={{
-            padding: '0.75rem 1.25rem',
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'contributions' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
-            color: activeTab === 'contributions' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <Gift size={18} />
-          Contributions & Distribution ({incomingContributions.length})
-          {incomingContributions.filter((c) => c.status === 'PLEDGED').length > 0 && (
-            <span
-              style={{
-                backgroundColor: '#f59e0b',
-                color: '#fff',
-                fontSize: '0.75rem',
-                padding: '0.1rem 0.45rem',
-                borderRadius: '999px',
-                fontWeight: 700,
-              }}
-            >
-              {incomingContributions.filter((c) => c.status === 'PLEDGED').length} Pledged
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => handleTabChange('partnerships')}
-          style={{
-            padding: '0.75rem 1.25rem',
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'partnerships' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
-            color: activeTab === 'partnerships' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <Handshake size={18} />
-          CSR Partnerships ({partnerships.length})
-          {partnerships.filter(
-            (p) =>
-              p.status === 'PROPOSED' ||
-              (p.status === 'COUNTERED' && p.lastCounterByRole === 'BUSINESS') ||
-              p.status === 'DELIVERED'
-          ).length > 0 && (
-            <span
-              style={{
-                backgroundColor: '#7c3aed',
-                color: '#fff',
-                fontSize: '0.75rem',
-                padding: '0.1rem 0.45rem',
-                borderRadius: '999px',
-                fontWeight: 700,
-              }}
-            >
-              {
-                partnerships.filter(
-                  (p) =>
-                    p.status === 'PROPOSED' ||
-                    (p.status === 'COUNTERED' && p.lastCounterByRole === 'BUSINESS') ||
-                    p.status === 'DELIVERED'
-                ).length
-              }{' '}
-              action needed
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => handleTabChange('impact')}
-          style={{
-            padding: '0.75rem 1.25rem',
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'impact' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
-            color: activeTab === 'impact' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <TrendingUp size={18} />
-          Impact & Relief Report
-        </button>
-
-        <button
-          onClick={() => handleTabChange('volunteers')}
-          style={{
-            padding: '0.75rem 1.25rem',
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'volunteers' ? '3px solid var(--color-primary-600)' : '3px solid transparent',
-            color: activeTab === 'volunteers' ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <Users size={18} />
-          Volunteer Drives
-        </button>
+        {[
+          { id: 'overview', label: 'Charity Overview', icon: <LayoutDashboard size={17} /> },
+          { id: 'browse', label: `Available Food (${availableListings.length})`, icon: <ShoppingBag size={17} /> },
+          {
+            id: 'my-requests',
+            label: `My Requests (${myRequests.length})`,
+            icon: <ClipboardList size={17} />,
+            badge: activeReservedBatches > 0 ? activeReservedBatches : null,
+          },
+          { id: 'campaigns', label: `Relief Campaigns (${campaigns.length})`, icon: <Heart size={17} /> },
+          {
+            id: 'contributions',
+            label: `Received Contributions (${incomingContributions.length})`,
+            icon: <Gift size={17} />,
+            badge: incomingContributions.filter((c) => c.status === 'PLEDGED').length > 0 ? incomingContributions.filter((c) => c.status === 'PLEDGED').length : null,
+          },
+          { id: 'partnerships', label: `CSR Partnerships (${partnerships.length})`, icon: <Handshake size={17} /> },
+          { id: 'volunteers', label: `Volunteer Drives (${volunteerDrives.length})`, icon: <Users size={17} /> },
+          { id: 'impact', label: 'Verified Impact Tracker', icon: <Award size={17} /> },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => handleTabChange(tab.id)}
+            style={{
+              padding: '0.75rem 1rem',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === tab.id ? '3px solid var(--color-primary-600)' : '3px solid transparent',
+              color: activeTab === tab.id ? 'var(--color-primary-700)' : 'var(--color-text-muted)',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+          >
+            {tab.icon}
+            {tab.label}
+            {tab.badge && (
+              <span
+                style={{
+                  background: '#f59e0b',
+                  color: '#fff',
+                  fontSize: '0.7rem',
+                  padding: '0.1rem 0.4rem',
+                  borderRadius: '999px',
+                  fontWeight: 800,
+                }}
+              >
+                {tab.badge}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
+
+      {/* Tab 0: Charity Executive Overview */}
+      {activeTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Active Pickups Alert Banner if any batches are reserved */}
+          {activeReservedBatches > 0 && (
+            <div
+              style={{
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: 'var(--radius-md)',
+                padding: '1.25rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '1rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Clock size={24} style={{ color: '#0284c7' }} />
+                <div>
+                  <strong style={{ color: '#1e40af', fontSize: '0.95rem' }}>
+                    {activeReservedBatches} Surplus Food Batch(es) Ready for Pickup!
+                  </strong>
+                  <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.825rem', color: '#1e3a8a' }}>
+                    The donor restaurant has accepted your request. Dispatch your collection transport before the pickup window closes.
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="primary"
+                icon={<ClipboardList size={14} />}
+                onClick={() => handleTabChange('my-requests')}
+              >
+                View Pickup Coordinates &rarr;
+              </Button>
+            </div>
+          )}
+
+          {/* Quick Action Navigation Grid */}
+          <div className="grid grid-cols-3 gap-4">
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                padding: '1.25rem',
+                borderRadius: '12px',
+                border: '1px solid #bbf7d0',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: '#15803d', marginBottom: '0.35rem' }}>
+                  <ShoppingBag size={18} />
+                  <span>Surplus Marketplace</span>
+                </div>
+                <p style={{ fontSize: '0.85rem', color: '#14532d', margin: 0 }}>
+                  {availableListings.length} human-edible prepared batches live right now across verified restaurants.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="primary"
+                style={{ marginTop: '1rem', width: 'fit-content' }}
+                onClick={() => handleTabChange('browse')}
+              >
+                Claim Surplus Batches &rarr;
+              </Button>
+            </div>
+
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #fefce8 0%, #fef08a 100%)',
+                padding: '1.25rem',
+                borderRadius: '12px',
+                border: '1px solid #fef08a',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: '#854d0e', marginBottom: '0.35rem' }}>
+                  <Heart size={18} />
+                  <span>Rural Relief Drives</span>
+                </div>
+                <p style={{ fontSize: '0.85rem', color: '#713f12', margin: 0 }}>
+                  {campaigns.length} community campaigns for water, dry rations, or school supplies in remote districts.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                style={{ marginTop: '1rem', width: 'fit-content', borderColor: '#ca8a04', color: '#854d0e' }}
+                onClick={() => handleTabChange('campaigns')}
+              >
+                Manage Campaigns &rarr;
+              </Button>
+            </div>
+
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
+                padding: '1.25rem',
+                borderRadius: '12px',
+                border: '1px solid #ddd6fe',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: '#5b21b6', marginBottom: '0.35rem' }}>
+                  <Handshake size={18} />
+                  <span>Corporate CSR Sponsors</span>
+                </div>
+                <p style={{ fontSize: '0.85rem', color: '#4c1d95', margin: 0 }}>
+                  {partnerships.length} corporate sponsorship proposals. Lock agreements and reward verified patrons.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                style={{ marginTop: '1rem', width: 'fit-content', borderColor: '#8b5cf6', color: '#5b21b6' }}
+                onClick={() => handleTabChange('partnerships')}
+              >
+                Review CSR Proposals &rarr;
+              </Button>
+            </div>
+          </div>
+
+          {/* Ecosystem Highlights Grid */}
+          <div className="grid grid-cols-2 gap-6">
+            <Card
+              title="Recent Food Rescue Requests"
+              subtitle="Live status of requested surplus batches and pickup handoffs"
+              action={
+                <Button size="sm" variant="outline" onClick={() => handleTabChange('my-requests')}>
+                  All Requests &rarr;
+                </Button>
+              }
+            >
+              {myRequests.length === 0 ? (
+                <div className="text-center text-muted p-4">
+                  No rescue requests submitted yet. Browse the surplus marketplace to claim meals.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {myRequests.slice(0, 4).map((req) => (
+                    <div
+                      key={req.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '0.65rem 0',
+                        borderBottom: '1px solid #f1f5f9',
+                      }}
+                    >
+                      <div>
+                        <strong style={{ fontSize: '0.9rem' }}>{req.listingTitle}</strong>
+                        <div className="text-xs text-muted">
+                          {req.businessName} &bull; {req.quantityRequested} requested
+                        </div>
+                      </div>
+                      <span
+                        className={`badge ${
+                          req.status === 'ACCEPTED'
+                            ? 'badge-sky'
+                            : req.status === 'COLLECTED'
+                            ? 'badge-emerald'
+                            : 'badge-amber'
+                        }`}
+                        style={{ fontSize: '0.75rem' }}
+                      >
+                        {req.status === 'ACCEPTED' ? 'Ready for Pickup' : req.status === 'COLLECTED' ? 'Rescued' : 'Pending'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card
+              title="Incoming Community Pledges"
+              subtitle="Direct humanitarian aid awaiting receipt or field distribution verification"
+              action={
+                <Button size="sm" variant="outline" onClick={() => handleTabChange('contributions')}>
+                  Manage Aid &rarr;
+                </Button>
+              }
+            >
+              {incomingContributions.length === 0 ? (
+                <div className="text-center text-muted p-4">
+                  No pledges recorded yet. Launch campaigns to receive community support.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {incomingContributions.slice(0, 4).map((contrib) => (
+                    <div
+                      key={contrib.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '0.65rem 0',
+                        borderBottom: '1px solid #f1f5f9',
+                      }}
+                    >
+                      <div>
+                        <strong style={{ fontSize: '0.9rem' }}>{contrib.campaignTitle}</strong>
+                        <div className="text-xs text-muted">
+                          From: {contrib.contributorName} &bull; {contrib.quantity} {contrib.unit}
+                        </div>
+                      </div>
+                      <span
+                        className={`badge ${
+                          contrib.status === 'CONFIRMED'
+                            ? 'badge-sky'
+                            : contrib.status === 'DISTRIBUTED'
+                            ? 'badge-emerald'
+                            : 'badge-amber'
+                        }`}
+                        style={{ fontSize: '0.75rem' }}
+                      >
+                        {contrib.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+        </div>
+      )}
 
       {/* Tab 1: Browse Available Food */}
       {activeTab === 'browse' && (
@@ -2164,8 +2298,9 @@ export default function CharityDashboard() {
               <Table
                 columns={[
                   {
-                    header: 'Title & Category',
-                    render: (opp) => (
+                    key: 'title',
+                    label: 'Title & Category',
+                    render: (_, opp) => (
                       <div>
                         <div style={{ fontWeight: 700, color: 'var(--color-text)', marginBottom: '2px' }}>
                           {opp.title}
@@ -2186,8 +2321,9 @@ export default function CharityDashboard() {
                     ),
                   },
                   {
-                    header: 'Date & Location',
-                    render: (opp) => (
+                    key: 'eventDate',
+                    label: 'Date & Location',
+                    render: (_, opp) => (
                       <div style={{ fontSize: '0.85rem' }}>
                         <div>{opp.eventDate} ({opp.startTime || 'TBD'})</div>
                         <div style={{ color: 'var(--color-text-muted)', fontSize: '0.775rem' }}>
@@ -2197,8 +2333,9 @@ export default function CharityDashboard() {
                     ),
                   },
                   {
-                    header: 'Volunteers',
-                    render: (opp) => (
+                    key: 'volunteersRegistered',
+                    label: 'Volunteers',
+                    render: (_, opp) => (
                       <div style={{ fontSize: '0.85rem' }}>
                         <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
                           {opp.volunteersRegistered}
@@ -2208,8 +2345,9 @@ export default function CharityDashboard() {
                     ),
                   },
                   {
-                    header: 'Status',
-                    render: (opp) => (
+                    key: 'status',
+                    label: 'Status',
+                    render: (_, opp) => (
                       <span
                         style={{
                           fontSize: '0.75rem',
@@ -2225,8 +2363,9 @@ export default function CharityDashboard() {
                     ),
                   },
                   {
-                    header: 'Action',
-                    render: (opp) => (
+                    key: 'actions',
+                    label: 'Action',
+                    render: (_, opp) => (
                       <Button
                         size="sm"
                         variant="secondary"

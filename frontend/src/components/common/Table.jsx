@@ -19,9 +19,9 @@ export default function Table({
       <table className="table">
         <thead>
           <tr>
-            {columns.map((col) => (
-              <th key={col.key || col.label} style={col.headerStyle || {}}>
-                {col.label}
+            {columns.map((col, idx) => (
+              <th key={col.key || col.label || col.header || idx} style={col.headerStyle || {}}>
+                {col.label || col.header}
               </th>
             ))}
           </tr>
@@ -30,11 +30,14 @@ export default function Table({
           {data.length > 0 ? (
             data.map((row, index) => (
               <tr key={row[keyField] || index}>
-                {columns.map((col) => (
-                  <td key={col.key || col.label} style={col.cellStyle || {}}>
-                    {col.render ? col.render(row[col.key], row, index) : row[col.key]}
-                  </td>
-                ))}
+                {columns.map((col, colIdx) => {
+                  const val = col.key ? row[col.key] : row
+                  return (
+                    <td key={col.key || col.label || col.header || colIdx} style={col.cellStyle || {}}>
+                      {col.render ? col.render(val, row, index) : (val !== undefined && val !== null ? String(val) : '')}
+                    </td>
+                  )
+                })}
               </tr>
             ))
           ) : (
