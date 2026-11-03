@@ -347,6 +347,18 @@ export const adminSubscriptionApi = {
   cancel: (id, data) => apiClient.post(`/admin/subscriptions/${id}/cancel`, data || {}),
 }
 
+// File & Image Upload API (Documents, Proofs, Receipts via Supabase Storage)
+export const uploadApi = {
+  uploadFile: (file, category = 'images') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('category', category)
+    return apiClient.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+}
+
 
 
 

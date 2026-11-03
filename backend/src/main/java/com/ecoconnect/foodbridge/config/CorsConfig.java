@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
-    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000,https://*.netlify.app,https://foodbridge.netlify.app,https://foodbridge.lk}")
     private String allowedOrigins;
 
     @Override
@@ -32,7 +32,7 @@ public class CorsConfig implements WebMvcConfigurer {
                 .toArray(String[]::new);
 
         registry.addMapping("/**")
-                .allowedOrigins(origins)
+                .allowedOriginPatterns(origins)
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders("Authorization")
@@ -49,7 +49,7 @@ public class CorsConfig implements WebMvcConfigurer {
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
 
-        configuration.setAllowedOrigins(origins);
+        configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
         configuration.setExposedHeaders(List.of("Authorization"));
