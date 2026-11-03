@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import {
@@ -53,11 +53,43 @@ import { SRI_LANKA_DISTRICTS, CAMPAIGN_NEED_TYPES } from '../../utils/constants'
 
 export default function CharityDashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const { showToast } = useToast()
 
-  // Navigation tab: 'browse', 'my-requests', 'profile'
-  const [activeTab, setActiveTab] = useState('browse')
+  const TAB_TO_PATH = {
+    'browse': '/dashboard/charity/available-food',
+    'my-requests': '/dashboard/charity/requests',
+    'campaigns': '/dashboard/charity/campaigns',
+    'contributions': '/dashboard/charity/contributions',
+    'partnerships': '/dashboard/charity/partnerships',
+    'volunteers': '/dashboard/charity/volunteers',
+    'impact': '/dashboard/charity/impact',
+  }
+
+  const PATH_TO_TAB = {
+    '/dashboard/charity': 'browse',
+    '/dashboard/charity/': 'browse',
+    '/dashboard/charity/available-food': 'browse',
+    '/dashboard/charity/browse': 'browse',
+    '/dashboard/charity/requests': 'my-requests',
+    '/dashboard/charity/my-requests': 'my-requests',
+    '/dashboard/charity/campaigns': 'campaigns',
+    '/dashboard/charity/contributions': 'contributions',
+    '/dashboard/charity/partnerships': 'partnerships',
+    '/dashboard/charity/volunteers': 'volunteers',
+    '/dashboard/charity/impact': 'impact',
+  }
+
+  const [activeTab, setActiveTab] = useState(() => PATH_TO_TAB[window.location?.pathname] || 'browse')
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId)
+    const targetPath = TAB_TO_PATH[tabId] || '/dashboard/charity'
+    if (location.pathname !== targetPath) {
+      navigate(targetPath)
+    }
+  }
 
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
@@ -343,6 +375,17 @@ export default function CharityDashboard() {
       setLoadingVolunteerDrives(false)
     }
   }
+
+  // Synchronize route changes (sidebar clicks) to active tab & trigger loaders
+  useEffect(() => {
+    const matchedTab = PATH_TO_TAB[location.pathname]
+    if (matchedTab) {
+      setActiveTab(matchedTab)
+      if (matchedTab === 'impact') loadCharityImpact()
+      if (matchedTab === 'volunteers') loadVolunteerDrives()
+      if (matchedTab === 'partnerships') loadPartnerships()
+    }
+  }, [location.pathname])
 
   const handleOpenAttendees = async (opp) => {
     setSelectedDriveForAttendees(opp)
@@ -1253,7 +1296,7 @@ export default function CharityDashboard() {
         }}
       >
         <button
-          onClick={() => setActiveTab('browse')}
+          onClick={() => handleTabChange('browse')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1273,7 +1316,7 @@ export default function CharityDashboard() {
         </button>
 
         <button
-          onClick={() => setActiveTab('my-requests')}
+          onClick={() => handleTabChange('my-requests')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1307,7 +1350,7 @@ export default function CharityDashboard() {
         </button>
 
         <button
-          onClick={() => setActiveTab('campaigns')}
+          onClick={() => handleTabChange('campaigns')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1327,7 +1370,7 @@ export default function CharityDashboard() {
         </button>
 
         <button
-          onClick={() => setActiveTab('contributions')}
+          onClick={() => handleTabChange('contributions')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1361,7 +1404,7 @@ export default function CharityDashboard() {
         </button>
 
         <button
-          onClick={() => setActiveTab('partnerships')}
+          onClick={() => handleTabChange('partnerships')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1408,10 +1451,7 @@ export default function CharityDashboard() {
         </button>
 
         <button
-          onClick={() => {
-            setActiveTab('impact')
-            loadCharityImpact()
-          }}
+          onClick={() => handleTabChange('impact')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1431,10 +1471,7 @@ export default function CharityDashboard() {
         </button>
 
         <button
-          onClick={() => {
-            setActiveTab('volunteers')
-            loadVolunteerDrives()
-          }}
+          onClick={() => handleTabChange('volunteers')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,

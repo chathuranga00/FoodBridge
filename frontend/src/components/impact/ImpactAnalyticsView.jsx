@@ -42,13 +42,18 @@ const COLORS = ['#059669', '#2563eb', '#e11d48', '#d97706', '#7c3aed', '#0284c7'
 
 export default function ImpactAnalyticsView({
   data,
+  summary,
   loading = false,
   isOrganization = false,
   title = 'Verified Impact & Transparency',
   subtitle = 'Real-time verified data reflecting completed actions across Sri Lanka.',
   onDateRangeChange,
+  onDateFilterChange,
   onExportCsv,
 }) {
+  const actualData = data || summary
+  const dateChangeHandler = onDateRangeChange || onDateFilterChange
+
   const [filterPreset, setFilterPreset] = useState('ALL')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
@@ -77,15 +82,15 @@ export default function ImpactAnalyticsView({
 
     setCustomStart(start)
     setCustomEnd(end)
-    if (onDateRangeChange) {
-      onDateRangeChange(start || null, end || null)
+    if (dateChangeHandler) {
+      dateChangeHandler(start || null, end || null)
     }
   }
 
   const handleCustomApply = () => {
     setFilterPreset('CUSTOM')
-    if (onDateRangeChange) {
-      onDateRangeChange(customStart || null, customEnd || null)
+    if (dateChangeHandler) {
+      dateChangeHandler(customStart || null, customEnd || null)
     }
   }
 
@@ -93,8 +98,8 @@ export default function ImpactAnalyticsView({
     setFilterPreset('ALL')
     setCustomStart('')
     setCustomEnd('')
-    if (onDateRangeChange) {
-      onDateRangeChange(null, null)
+    if (dateChangeHandler) {
+      dateChangeHandler(null, null)
     }
   }
 
@@ -102,7 +107,7 @@ export default function ImpactAnalyticsView({
     window.print()
   }
 
-  if (loading && !data) {
+  if (loading && !actualData) {
     return (
       <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--color-text-muted)' }}>
         <div
@@ -122,20 +127,20 @@ export default function ImpactAnalyticsView({
   }
 
   // Fallbacks
-  const foodKg = data?.foodRescuedKg ?? data?.foodWeightKg ?? 0
-  const collections = data?.completedCollections ?? 0
-  const groceryRedeemed = data?.groceryProductsRedeemed ?? 0
-  const activeBusinesses = data?.activeBusinesses ?? 1
-  const completedCampaigns = data?.completedCampaigns ?? 0
-  const resources = data?.resourcesDistributed ?? data?.resourcesHandled ?? 0
-  const people = data?.peopleSupported ?? 0
-  const volunteers = data?.activeVolunteers ?? 0
-  const co2 = data?.co2SavingsKg ?? 0
-  const meals = data?.mealsProvided ?? 0
+  const foodKg = actualData?.foodRescuedKg ?? actualData?.foodWeightKg ?? 0
+  const collections = actualData?.completedCollections ?? 0
+  const groceryRedeemed = actualData?.groceryProductsRedeemed ?? 0
+  const activeBusinesses = actualData?.activeBusinesses ?? 1
+  const completedCampaigns = actualData?.completedCampaigns ?? 0
+  const resources = actualData?.resourcesDistributed ?? actualData?.resourcesHandled ?? 0
+  const people = actualData?.peopleSupported ?? 0
+  const volunteers = actualData?.activeVolunteers ?? 0
+  const co2 = actualData?.co2SavingsKg ?? 0
+  const meals = actualData?.mealsProvided ?? 0
 
-  const categoryBreakdown = data?.categoryBreakdown || []
-  const monthlyTrends = data?.monthlyTrends || []
-  const recentMilestones = data?.recentMilestones || data?.recentActivities || []
+  const categoryBreakdown = actualData?.categoryBreakdown || []
+  const monthlyTrends = actualData?.monthlyTrends || []
+  const recentMilestones = actualData?.recentMilestones || actualData?.recentActivities || []
 
   return (
     <div className="impact-dashboard-container">

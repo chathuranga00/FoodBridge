@@ -19,6 +19,12 @@ import {
   FileText,
   BarChart3,
   Award,
+  Handshake,
+  Settings,
+  Sparkles,
+  CreditCard,
+  Receipt,
+  Users,
 } from 'lucide-react'
 import Button from '../common/Button'
 
@@ -44,9 +50,12 @@ export default function DashboardLayout({ title = 'Dashboard' }) {
           { label: 'Pending Verifications', path: '/dashboard/admin/verifications', icon: <ShieldCheck size={18} /> },
           { label: 'Campaign Approvals', path: '/dashboard/admin/campaigns', icon: <ClipboardList size={18} /> },
           { label: 'User Management', path: '/dashboard/admin/users', icon: <User size={18} /> },
+          { label: 'Listing Management', path: '/dashboard/admin/listings', icon: <ShoppingBag size={18} /> },
+          { label: 'Partnerships & CSR', path: '/dashboard/admin/partnerships', icon: <Handshake size={18} /> },
           { label: 'Platform Revenue', path: '/dashboard/admin/revenue', icon: <DollarSign size={18} /> },
           { label: 'Global Impact Stats', path: '/dashboard/admin/impact', icon: <BarChart3 size={18} /> },
           { label: 'Audit Logs', path: '/dashboard/admin/audit', icon: <FileText size={18} /> },
+          { label: 'Platform Settings', path: '/dashboard/admin/settings', icon: <Settings size={18} /> },
         ]
 
       case 'RESTAURANT':
@@ -54,11 +63,14 @@ export default function DashboardLayout({ title = 'Dashboard' }) {
         return [
           { label: 'Business Overview', path: '/dashboard/business', icon: <LayoutDashboard size={18} /> },
           { label: 'Surplus Food Listings', path: '/dashboard/business/listings', icon: <ShoppingBag size={18} /> },
-          { label: 'Post Surplus Food', path: '/dashboard/business/listings/new', icon: <ShoppingBag size={18} /> },
           { label: 'Grocery Near-Expiry Offers', path: '/dashboard/business/grocery-offers', icon: <Tag size={18} /> },
-          { label: 'Discount Coupons', path: '/dashboard/business/coupons', icon: <Tag size={18} /> },
-          { label: 'Verification Status', path: '/dashboard/business/verification', icon: <ShieldCheck size={18} /> },
-          { label: 'Waste Reduction Stats', path: '/dashboard/business/analytics', icon: <BarChart3 size={18} /> },
+          { label: 'Coupon Redemptions', path: '/dashboard/business/redemptions', icon: <Receipt size={18} /> },
+          { label: 'Charity Food Requests', path: '/dashboard/business/requests', icon: <ClipboardList size={18} /> },
+          { label: 'CSR Campaign Pledges', path: '/dashboard/business/csr-contributions', icon: <Heart size={18} /> },
+          { label: 'CSR Partnerships', path: '/dashboard/business/csr-partnerships', icon: <Handshake size={18} /> },
+          { label: 'Impact & Sustainability', path: '/dashboard/business/impact', icon: <BarChart3 size={18} /> },
+          { label: 'Promotions & Growth', path: '/dashboard/business/promotions', icon: <Sparkles size={18} /> },
+          { label: 'Subscription Packages', path: '/dashboard/business/subscriptions', icon: <CreditCard size={18} /> },
         ]
 
       case 'CHARITY':
@@ -68,16 +80,18 @@ export default function DashboardLayout({ title = 'Dashboard' }) {
           { label: 'My Food Requests', path: '/dashboard/charity/requests', icon: <ClipboardList size={18} /> },
           { label: 'Relief Campaigns', path: '/dashboard/charity/campaigns', icon: <Heart size={18} /> },
           { label: 'Received Contributions', path: '/dashboard/charity/contributions', icon: <DollarSign size={18} /> },
+          { label: 'CSR Partnerships', path: '/dashboard/charity/partnerships', icon: <Handshake size={18} /> },
+          { label: 'Volunteer Drives', path: '/dashboard/charity/volunteers', icon: <Users size={18} /> },
           { label: 'Verified Impact Tracker', path: '/dashboard/charity/impact', icon: <Award size={18} /> },
         ]
 
       case 'ANIMAL_ORG':
         return [
           { label: 'Animal Welfare Overview', path: '/dashboard/animal-welfare', icon: <LayoutDashboard size={18} /> },
-          { label: 'Surplus Animal Feed', path: '/dashboard/animal-welfare/feed-listings', icon: <Dog size={18} /> },
           { label: 'Feeding Locations Map', path: '/dashboard/animal-welfare/locations', icon: <MapPin size={18} /> },
-          { label: 'Feeding Campaigns', path: '/dashboard/animal-welfare/campaigns', icon: <Heart size={18} /> },
-          { label: 'Donations Confirmed', path: '/dashboard/animal-welfare/contributions', icon: <DollarSign size={18} /> },
+          { label: 'Surplus Animal Feed', path: '/dashboard/animal-welfare/feed-listings', icon: <Dog size={18} /> },
+          { label: 'Feed Needs & Campaigns', path: '/dashboard/animal-welfare/requirements', icon: <ClipboardList size={18} /> },
+          { label: 'Volunteer Drives', path: '/dashboard/animal-welfare/volunteers', icon: <Users size={18} /> },
           { label: 'Animals Fed Impact', path: '/dashboard/animal-welfare/impact', icon: <Award size={18} /> },
         ]
 
@@ -85,17 +99,26 @@ export default function DashboardLayout({ title = 'Dashboard' }) {
       default:
         return [
           { label: 'My Overview', path: '/dashboard/user', icon: <LayoutDashboard size={18} /> },
-          { label: 'Surplus Food Map', path: '/dashboard/user/map', icon: <MapPin size={18} /> },
-          { label: 'Grocery Deals', path: '/dashboard/user/deals', icon: <Tag size={18} /> },
-          { label: 'My Pledged Contributions', path: '/dashboard/user/contributions', icon: <Heart size={18} /> },
-          { label: 'Volunteer Tasks', path: '/dashboard/user/volunteer', icon: <Award size={18} /> },
-          { label: 'My Profile', path: '/dashboard/user/profile', icon: <User size={18} /> },
+          { label: 'Surplus Food Map', path: '/explore', icon: <MapPin size={18} /> },
+          { label: 'Browse Grocery Deals', path: '/grocery-offers', icon: <Tag size={18} /> },
+          { label: 'Relief Campaigns', path: '/campaigns', icon: <Heart size={18} /> },
+          { label: 'Volunteer Activities', path: '/volunteer', icon: <Award size={18} /> },
+          { label: 'Browse Businesses', path: '/businesses', icon: <ShoppingBag size={18} /> },
         ]
     }
   }
 
   const navItems = getNavItems()
-  const isActive = (path) => location.pathname === path
+  const isActive = (path) => {
+    if (location.pathname === path) return true
+    if (path === '/dashboard/admin/revenue' && location.pathname === '/dashboard/admin/subscriptions') return true
+    if (path === '/dashboard/admin/audit' && (location.pathname === '/dashboard/admin/audit_logs' || location.pathname === '/dashboard/admin/audit-logs')) return true
+    if (path === '/dashboard/charity/available-food' && location.pathname === '/dashboard/charity/browse') return true
+    if (path === '/dashboard/charity/requests' && location.pathname === '/dashboard/charity/my-requests') return true
+    if (path === '/dashboard/animal-welfare/feed-listings' && location.pathname === '/dashboard/animal-welfare/surplus-feed') return true
+    if (path === '/dashboard/business/redemptions' && location.pathname === '/dashboard/business/coupons') return true
+    return false
+  }
 
   const getRoleBadgeClass = (role) => {
     switch (role) {

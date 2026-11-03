@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import {
@@ -69,10 +69,48 @@ const DISTRICT_COORDINATES = {
 
 export default function AnimalOrgDashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const { showToast } = useToast()
 
-  const [activeTab, setActiveTab] = useState('locations') // 'locations' | 'surplus-feed' | 'requirements' | 'volunteers' | 'impact'
+  const TAB_TO_PATH = {
+    'locations': '/dashboard/animal-welfare/locations',
+    'surplus-feed': '/dashboard/animal-welfare/feed-listings',
+    'requirements': '/dashboard/animal-welfare/requirements',
+    'volunteers': '/dashboard/animal-welfare/volunteers',
+    'impact': '/dashboard/animal-welfare/impact',
+  }
+
+  const PATH_TO_TAB = {
+    '/dashboard/animal-welfare': 'locations',
+    '/dashboard/animal-welfare/': 'locations',
+    '/dashboard/animal-welfare/locations': 'locations',
+    '/dashboard/animal-welfare/feed-listings': 'surplus-feed',
+    '/dashboard/animal-welfare/surplus-feed': 'surplus-feed',
+    '/dashboard/animal-welfare/requirements': 'requirements',
+    '/dashboard/animal-welfare/campaigns': 'requirements',
+    '/dashboard/animal-welfare/contributions': 'requirements',
+    '/dashboard/animal-welfare/volunteers': 'volunteers',
+    '/dashboard/animal-welfare/impact': 'impact',
+  }
+
+  const [activeTab, setActiveTab] = useState(() => PATH_TO_TAB[window.location?.pathname] || 'locations')
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId)
+    const targetPath = TAB_TO_PATH[tabId] || '/dashboard/animal-welfare'
+    if (location.pathname !== targetPath) {
+      navigate(targetPath)
+    }
+  }
+
+  // Synchronize route changes (sidebar clicks) to active tab
+  useEffect(() => {
+    const matchedTab = PATH_TO_TAB[location.pathname]
+    if (matchedTab) {
+      setActiveTab(matchedTab)
+    }
+  }, [location.pathname])
   const [loading, setLoading] = useState(true)
 
   // Data states
@@ -627,7 +665,7 @@ export default function AnimalOrgDashboard() {
       >
         <button
           type="button"
-          onClick={() => setActiveTab('locations')}
+          onClick={() => handleTabChange('locations')}
           style={{
             padding: '0.65rem 1.25rem',
             background: 'none',
@@ -647,7 +685,7 @@ export default function AnimalOrgDashboard() {
 
         <button
           type="button"
-          onClick={() => setActiveTab('surplus-feed')}
+          onClick={() => handleTabChange('surplus-feed')}
           style={{
             padding: '0.65rem 1.25rem',
             background: 'none',
@@ -667,7 +705,7 @@ export default function AnimalOrgDashboard() {
 
         <button
           type="button"
-          onClick={() => setActiveTab('requirements')}
+          onClick={() => handleTabChange('requirements')}
           style={{
             padding: '0.65rem 1.25rem',
             background: 'none',
@@ -687,7 +725,7 @@ export default function AnimalOrgDashboard() {
 
         <button
           type="button"
-          onClick={() => setActiveTab('volunteers')}
+          onClick={() => handleTabChange('volunteers')}
           style={{
             padding: '0.65rem 1.25rem',
             background: 'none',
@@ -707,7 +745,7 @@ export default function AnimalOrgDashboard() {
 
         <button
           type="button"
-          onClick={() => setActiveTab('impact')}
+          onClick={() => handleTabChange('impact')}
           style={{
             padding: '0.65rem 1.25rem',
             background: 'none',

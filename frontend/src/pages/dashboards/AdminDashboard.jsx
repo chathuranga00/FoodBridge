@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import {
@@ -60,9 +61,44 @@ import ImpactAnalyticsView from '../../components/impact/ImpactAnalyticsView'
 export default function AdminDashboard() {
   const { user } = useAuth()
   const { showToast } = useToast()
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const TAB_TO_PATH = {
+    overview: '/dashboard/admin',
+    users: '/dashboard/admin/users',
+    verifications: '/dashboard/admin/verifications',
+    listings: '/dashboard/admin/listings',
+    campaigns: '/dashboard/admin/campaigns',
+    partnerships: '/dashboard/admin/partnerships',
+    subscriptions: '/dashboard/admin/revenue',
+    impact: '/dashboard/admin/impact',
+    audit_logs: '/dashboard/admin/audit',
+    settings: '/dashboard/admin/settings',
+  }
+
+  const PATH_TO_TAB = {
+    '/dashboard/admin': 'overview',
+    '/dashboard/admin/': 'overview',
+    '/dashboard/admin/overview': 'overview',
+    '/dashboard/admin/users': 'users',
+    '/dashboard/admin/verifications': 'verifications',
+    '/dashboard/admin/pending-verifications': 'verifications',
+    '/dashboard/admin/listings': 'listings',
+    '/dashboard/admin/campaigns': 'campaigns',
+    '/dashboard/admin/approvals': 'campaigns',
+    '/dashboard/admin/partnerships': 'partnerships',
+    '/dashboard/admin/revenue': 'subscriptions',
+    '/dashboard/admin/subscriptions': 'subscriptions',
+    '/dashboard/admin/impact': 'impact',
+    '/dashboard/admin/audit': 'audit_logs',
+    '/dashboard/admin/audit_logs': 'audit_logs',
+    '/dashboard/admin/audit-logs': 'audit_logs',
+    '/dashboard/admin/settings': 'settings',
+  }
 
   const [loading, setLoading] = useState(true)
-  const [activeAdminTab, setActiveAdminTab] = useState('overview')
+  const [activeAdminTab, setActiveAdminTab] = useState(() => PATH_TO_TAB[window.location?.pathname] || 'overview')
 
   // =========================================================================
   // 1. PLATFORM OVERVIEW STATE
@@ -385,6 +421,30 @@ export default function AdminDashboard() {
       setLoadingSettings(false)
     }
   }
+
+  const handleTabChange = (tabId) => {
+    setActiveAdminTab(tabId)
+    const targetPath = TAB_TO_PATH[tabId] || '/dashboard/admin'
+    if (location.pathname !== targetPath) {
+      navigate(targetPath)
+    }
+  }
+
+  // Synchronize route changes (sidebar clicks) to active tab & trigger respective loader
+  useEffect(() => {
+    const tab = PATH_TO_TAB[location.pathname] || 'overview'
+    setActiveAdminTab(tab)
+    if (tab === 'users') loadUsers()
+    if (tab === 'verifications') loadPendingVerifications()
+    if (tab === 'listings') loadListings()
+    if (tab === 'campaigns') loadAllCampaigns()
+    if (tab === 'partnerships') loadContributions()
+    if (tab === 'subscriptions') loadAdminSubscriptions()
+    if (tab === 'impact') loadPlatformImpact()
+    if (tab === 'audit_logs') loadAuditLogs()
+    if (tab === 'settings') loadSettings()
+    if (tab === 'overview') loadOverview()
+  }, [location.pathname])
 
   // =========================================================================
   // HANDLERS: USER MANAGEMENT
@@ -1392,25 +1452,14 @@ export default function AdminDashboard() {
             badge: pendingCampaigns.length > 0 ? pendingCampaigns.length : null,
           },
           { id: 'partnerships', label: 'Partnerships & Donations', icon: <Handshake size={17} /> },
-          { id: 'subscriptions', label: 'Subscription Packages', icon: <CreditCard size={17} /> },
+          { id: 'subscriptions', label: 'Platform Revenue & Subscriptions', icon: <CreditCard size={17} /> },
           { id: 'impact', label: 'Impact Reports', icon: <TrendingUp size={17} /> },
           { id: 'audit_logs', label: 'Audit Log Viewer', icon: <Activity size={17} /> },
           { id: 'settings', label: 'Settings', icon: <SettingsIcon size={17} /> },
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => {
-              setActiveAdminTab(tab.id)
-              if (tab.id === 'users') loadUsers()
-              if (tab.id === 'listings') loadListings()
-              if (tab.id === 'campaigns') loadAllCampaigns()
-              if (tab.id === 'partnerships') loadContributions()
-              if (tab.id === 'audit_logs') loadAuditLogs()
-              if (tab.id === 'settings') loadSettings()
-              if (tab.id === 'subscriptions') loadAdminSubscriptions()
-              if (tab.id === 'impact') loadPlatformImpact()
-              if (tab.id === 'overview') loadOverview()
-            }}
+            onClick={() => handleTabChange(tab.id)}
             style={{
               padding: '0.75rem 1rem',
               fontWeight: 700,
@@ -1531,7 +1580,7 @@ export default function AdminDashboard() {
                 size="sm"
                 variant="primary"
                 style={{ marginTop: '1rem', width: 'fit-content' }}
-                onClick={() => setActiveAdminTab('verifications')}
+                onClick={() => handleTabChange('verifications')}
               >
                 Go to Verification Queue &rarr;
               </Button>
@@ -1561,10 +1610,7 @@ export default function AdminDashboard() {
                 size="sm"
                 variant="outline"
                 style={{ marginTop: '1rem', width: 'fit-content', borderColor: '#ca8a04', color: '#854d0e' }}
-                onClick={() => {
-                  setActiveAdminTab('campaigns')
-                  loadAllCampaigns()
-                }}
+                onClick={() => handleTabChange('campaigns')}
               >
                 Moderate Campaigns &rarr;
               </Button>
@@ -1594,10 +1640,7 @@ export default function AdminDashboard() {
                 size="sm"
                 variant="outline"
                 style={{ marginTop: '1rem', width: 'fit-content', borderColor: '#8b5cf6', color: '#5b21b6' }}
-                onClick={() => {
-                  setActiveAdminTab('subscriptions')
-                  loadAdminSubscriptions()
-                }}
+                onClick={() => handleTabChange('subscriptions')}
               >
                 Manage Subscriptions &rarr;
               </Button>
@@ -1650,10 +1693,7 @@ export default function AdminDashboard() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  setActiveAdminTab('audit_logs')
-                  loadAuditLogs()
-                }}
+                onClick={() => handleTabChange('audit_logs')}
               >
                 View Full Audit Trail &rarr;
               </Button>
@@ -2331,6 +2371,7 @@ export default function AdminDashboard() {
             <Loader text="Loading national impact analytics..." />
           ) : (
             <ImpactAnalyticsView
+              data={platformImpact}
               summary={platformImpact}
               title="National Impact Ledger"
               allowExport={true}

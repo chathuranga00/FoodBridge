@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import {
@@ -55,12 +55,50 @@ import { SRI_LANKA_DISTRICTS, BUSINESS_TYPES, GROCERY_CATEGORIES } from '../../u
 
 export default function BusinessDashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const { showToast } = useToast()
 
-  // Navigation tab: 'listings', 'requests', 'grocery-offers', 'redemptions'
   const isGroceryRole = user?.role === 'GROCERY'
-  const [activeTab, setActiveTab] = useState(isGroceryRole ? 'grocery-offers' : 'listings')
+
+  const TAB_TO_PATH = {
+    'grocery-offers': '/dashboard/business/grocery-offers',
+    'redemptions': '/dashboard/business/redemptions',
+    'listings': '/dashboard/business/listings',
+    'requests': '/dashboard/business/requests',
+    'csr-contributions': '/dashboard/business/csr-contributions',
+    'csr-partnerships': '/dashboard/business/csr-partnerships',
+    'impact': '/dashboard/business/impact',
+    'promotions': '/dashboard/business/promotions',
+    'subscriptions': '/dashboard/business/subscriptions',
+  }
+
+  const PATH_TO_TAB = {
+    '/dashboard/business': isGroceryRole ? 'grocery-offers' : 'listings',
+    '/dashboard/business/': isGroceryRole ? 'grocery-offers' : 'listings',
+    '/dashboard/business/listings': 'listings',
+    '/dashboard/business/grocery-offers': 'grocery-offers',
+    '/dashboard/business/redemptions': 'redemptions',
+    '/dashboard/business/coupons': 'redemptions',
+    '/dashboard/business/requests': 'requests',
+    '/dashboard/business/csr-contributions': 'csr-contributions',
+    '/dashboard/business/csr-partnerships': 'csr-partnerships',
+    '/dashboard/business/impact': 'impact',
+    '/dashboard/business/analytics': 'impact',
+    '/dashboard/business/promotions': 'promotions',
+    '/dashboard/business/subscriptions': 'subscriptions',
+    '/dashboard/business/revenue': 'subscriptions',
+  }
+
+  const [activeTab, setActiveTab] = useState(() => PATH_TO_TAB[window.location?.pathname] || (isGroceryRole ? 'grocery-offers' : 'listings'))
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId)
+    const targetPath = TAB_TO_PATH[tabId] || '/dashboard/business'
+    if (location.pathname !== targetPath) {
+      navigate(targetPath)
+    }
+  }
 
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
@@ -371,6 +409,19 @@ export default function BusinessDashboard() {
       setLoadingSubscriptions(false)
     }
   }
+
+  // Synchronize route changes (sidebar clicks) to active tab & trigger loaders
+  useEffect(() => {
+    const matchedTab = PATH_TO_TAB[location.pathname]
+    if (matchedTab) {
+      setActiveTab(matchedTab)
+      if (matchedTab === 'impact') loadBusinessImpact()
+      if (matchedTab === 'promotions') loadPromotionsData()
+      if (matchedTab === 'subscriptions') loadSubscriptionData()
+      if (matchedTab === 'csr-partnerships') loadPartnerships()
+      if (matchedTab === 'csr-contributions') loadContributions()
+    }
+  }, [location.pathname])
 
   const handleOpenSubscribeModal = (pkg) => {
     setSelectedPackage(pkg)
@@ -1770,7 +1821,7 @@ export default function BusinessDashboard() {
         }}
       >
         <button
-          onClick={() => setActiveTab('grocery-offers')}
+          onClick={() => handleTabChange('grocery-offers')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1790,7 +1841,7 @@ export default function BusinessDashboard() {
         </button>
 
         <button
-          onClick={() => setActiveTab('redemptions')}
+          onClick={() => handleTabChange('redemptions')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1824,7 +1875,7 @@ export default function BusinessDashboard() {
         </button>
 
         <button
-          onClick={() => setActiveTab('listings')}
+          onClick={() => handleTabChange('listings')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1844,7 +1895,7 @@ export default function BusinessDashboard() {
         </button>
 
         <button
-          onClick={() => setActiveTab('requests')}
+          onClick={() => handleTabChange('requests')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1878,7 +1929,7 @@ export default function BusinessDashboard() {
         </button>
 
         <button
-          onClick={() => setActiveTab('csr-contributions')}
+          onClick={() => handleTabChange('csr-contributions')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1898,7 +1949,7 @@ export default function BusinessDashboard() {
         </button>
 
         <button
-          onClick={() => setActiveTab('csr-partnerships')}
+          onClick={() => handleTabChange('csr-partnerships')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1932,10 +1983,7 @@ export default function BusinessDashboard() {
         </button>
 
         <button
-          onClick={() => {
-            setActiveTab('impact')
-            loadBusinessImpact()
-          }}
+          onClick={() => handleTabChange('impact')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1955,10 +2003,7 @@ export default function BusinessDashboard() {
         </button>
 
         <button
-          onClick={() => {
-            setActiveTab('promotions')
-            loadPromotionsData()
-          }}
+          onClick={() => handleTabChange('promotions')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
@@ -1978,10 +2023,7 @@ export default function BusinessDashboard() {
         </button>
 
         <button
-          onClick={() => {
-            setActiveTab('subscriptions')
-            loadSubscriptionData()
-          }}
+          onClick={() => handleTabChange('subscriptions')}
           style={{
             padding: '0.75rem 1.25rem',
             fontWeight: 700,
