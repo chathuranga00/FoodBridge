@@ -19,5 +19,13 @@ public class PromotionAnalyticsDto {
     private Double averageCtr;
     private Double averageRedemptionRate;
     private List<PromotionResponseDto> promotions;
+
+    // Feature gating & subscription tier info
+    private Boolean isGated;
+    private String currentPlan;
+    private String gatingReason;
+    private Integer maxAllowedPromotions;
+    private Boolean hasFeaturedPlacement;
+    private Boolean hasSponsoredCampaigns;
 }
 

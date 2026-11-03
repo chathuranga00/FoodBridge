@@ -10,6 +10,7 @@ import com.ecoconnect.foodbridge.model.Promotion;
 import com.ecoconnect.foodbridge.model.User;
 import com.ecoconnect.foodbridge.model.enums.PaymentStatus;
 import com.ecoconnect.foodbridge.model.enums.PromotionType;
+import com.ecoconnect.foodbridge.model.enums.SubscriptionPlan;
 import com.ecoconnect.foodbridge.repository.BusinessRepository;
 import com.ecoconnect.foodbridge.repository.PromotionRepository;
 import com.ecoconnect.foodbridge.repository.UserRepository;
@@ -28,13 +29,16 @@ public class PromotionService {
     private final PromotionRepository promotionRepository;
     private final BusinessRepository businessRepository;
     private final UserRepository userRepository;
+    private final SubscriptionService subscriptionService;
 
     public PromotionService(PromotionRepository promotionRepository,
                             BusinessRepository businessRepository,
-                            UserRepository userRepository) {
+                            UserRepository userRepository,
+                            SubscriptionService subscriptionService) {
         this.promotionRepository = promotionRepository;
         this.businessRepository = businessRepository;
         this.userRepository = userRepository;
+        this.subscriptionService = subscriptionService;
     }
 
     private Business getBusinessForUser(String userEmail) {
@@ -53,8 +57,30 @@ public class PromotionService {
             throw new BadRequestException("End date cannot be earlier than start date");
         }
 
-        BigDecimal cost = request.getCostLkr() != null ? request.getCostLkr() : BigDecimal.valueOf(3500.00);
+        SubscriptionPlan plan = subscriptionService.getActivePlanForBusiness(business.getId());
+        int maxPromotions = switch (plan) {
+            case FREE -> 1;
+            case PROMOTION -> 5;
+            case PREMIUM -> 100;
+        };
+
+        boolean willBeActive = request.getIsActive() == null || Boolean.TRUE.equals(request.getIsActive());
+        if (willBeActive) {
+            long currentActiveCount = promotionRepository.findByBusinessIdOrderByCreatedAtDesc(business.getId())
+                    .stream()
+                    .filter(p -> Boolean.TRUE.equals(p.getIsActive()))
+                    .count();
+            if (currentActiveCount >= maxPromotions) {
+                throw new BadRequestException("Your " + plan.name() + " subscription plan allows a maximum of " + maxPromotions + " active promotion(s). Upgrade your subscription to add more.");
+            }
+        }
+
         boolean isFeaturedPromo = request.getPromotionType() == PromotionType.FEATURED_PROFILE;
+        if (isFeaturedPromo && plan == SubscriptionPlan.FREE) {
+            throw new BadRequestException("Featured profile placement requires a Promotion or Premium subscription plan.");
+        }
+
+        BigDecimal cost = request.getCostLkr() != null ? request.getCostLkr() : BigDecimal.valueOf(3500.00);
 
         Promotion promotion = Promotion.builder()
                 .business(business)
@@ -100,6 +126,11 @@ public class PromotionService {
         if (request.getEndDate() != null && request.getStartDate() != null &&
                 request.getEndDate().isBefore(request.getStartDate())) {
             throw new BadRequestException("End date cannot be earlier than start date");
+        }
+
+        SubscriptionPlan plan = subscriptionService.getActivePlanForBusiness(business.getId());
+        if (request.getPromotionType() == PromotionType.FEATURED_PROFILE && plan == SubscriptionPlan.FREE) {
+            throw new BadRequestException("Featured profile placement requires a Promotion or Premium subscription plan.");
         }
 
         promotion.setTitle(request.getTitle().trim());
@@ -151,17 +182,35 @@ public class PromotionService {
         Business business = getBusinessForUser(userEmail);
         List<Promotion> promotions = promotionRepository.findByBusinessIdOrderByCreatedAtDesc(business.getId());
 
+        SubscriptionPlan plan = subscriptionService.getActivePlanForBusiness(business.getId());
+        boolean isGated = plan == SubscriptionPlan.FREE;
+        int maxPromotions = switch (plan) {
+            case FREE -> 1;
+            case PROMOTION -> 5;
+            case PREMIUM -> 100;
+        };
+
         long total = promotions.size();
         long active = promotions.stream().filter(p -> Boolean.TRUE.equals(p.getIsActive())).count();
-        long totalViews = promotions.stream().mapToLong(p -> p.getViewsCount() != null ? p.getViewsCount() : 0L).sum();
-        long totalClicks = promotions.stream().mapToLong(p -> p.getClicksCount() != null ? p.getClicksCount() : 0L).sum();
-        long totalRedemptions = promotions.stream().mapToLong(p -> p.getRedemptionsCount() != null ? p.getRedemptionsCount() : 0L).sum();
 
-        double avgCtr = totalViews > 0 ? Math.round(((double) totalClicks / totalViews * 100.0) * 100.0) / 100.0 : 0.0;
-        double avgRedemptionRate = totalClicks > 0 ? Math.round(((double) totalRedemptions / totalClicks * 100.0) * 100.0) / 100.0 : 0.0;
+        // If gated on Free plan, mask/zero out CTR and redemption metrics
+        long totalViews = isGated ? 0L : promotions.stream().mapToLong(p -> p.getViewsCount() != null ? p.getViewsCount() : 0L).sum();
+        long totalClicks = isGated ? 0L : promotions.stream().mapToLong(p -> p.getClicksCount() != null ? p.getClicksCount() : 0L).sum();
+        long totalRedemptions = isGated ? 0L : promotions.stream().mapToLong(p -> p.getRedemptionsCount() != null ? p.getRedemptionsCount() : 0L).sum();
+
+        double avgCtr = isGated ? 0.0 : (totalViews > 0 ? Math.round(((double) totalClicks / totalViews * 100.0) * 100.0) / 100.0 : 0.0);
+        double avgRedemptionRate = isGated ? 0.0 : (totalClicks > 0 ? Math.round(((double) totalRedemptions / totalClicks * 100.0) * 100.0) / 100.0 : 0.0);
 
         List<PromotionResponseDto> dtos = promotions.stream()
-                .map(PromotionResponseDto::fromEntity)
+                .map(p -> {
+                    PromotionResponseDto dto = PromotionResponseDto.fromEntity(p);
+                    if (isGated) {
+                        dto.setViewsCount(0L);
+                        dto.setClicksCount(0L);
+                        dto.setRedemptionsCount(0L);
+                    }
+                    return dto;
+                })
                 .collect(Collectors.toList());
 
         return PromotionAnalyticsDto.builder()
@@ -173,7 +222,23 @@ public class PromotionService {
                 .averageCtr(avgCtr)
                 .averageRedemptionRate(avgRedemptionRate)
                 .promotions(dtos)
+                .isGated(isGated)
+                .currentPlan(plan.name())
+                .gatingReason(isGated ? "Detailed conversion metrics and CTR tracking require a Promotion or Premium subscription." : null)
+                .maxAllowedPromotions(maxPromotions)
+                .hasFeaturedPlacement(plan != SubscriptionPlan.FREE)
+                .hasSponsoredCampaigns(plan == SubscriptionPlan.PREMIUM)
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public PromotionAnalyticsDto getDetailedPromotionAnalytics(String userEmail) {
+        Business business = getBusinessForUser(userEmail);
+        SubscriptionPlan plan = subscriptionService.getActivePlanForBusiness(business.getId());
+        if (plan == SubscriptionPlan.FREE) {
+            throw new BadRequestException("Detailed promotional analytics require an active Promotion or Premium subscription.");
+        }
+        return getMyPromotionAnalytics(userEmail);
     }
 
     @Transactional
@@ -186,7 +251,25 @@ public class PromotionService {
             throw new BadRequestException("You do not have permission to modify this promotion");
         }
 
-        promotion.setIsActive(!Boolean.TRUE.equals(promotion.getIsActive()));
+        boolean willBeActive = !Boolean.TRUE.equals(promotion.getIsActive());
+        if (willBeActive) {
+            SubscriptionPlan plan = subscriptionService.getActivePlanForBusiness(business.getId());
+            int maxPromotions = switch (plan) {
+                case FREE -> 1;
+                case PROMOTION -> 5;
+                case PREMIUM -> 100;
+            };
+
+            long currentActiveCount = promotionRepository.findByBusinessIdOrderByCreatedAtDesc(business.getId())
+                    .stream()
+                    .filter(p -> Boolean.TRUE.equals(p.getIsActive()))
+                    .count();
+            if (currentActiveCount >= maxPromotions) {
+                throw new BadRequestException("Your " + plan.name() + " subscription plan allows a maximum of " + maxPromotions + " active promotion(s). Upgrade your subscription to activate more.");
+            }
+        }
+
+        promotion.setIsActive(willBeActive);
         Promotion saved = promotionRepository.save(promotion);
         return PromotionResponseDto.fromEntity(saved);
     }

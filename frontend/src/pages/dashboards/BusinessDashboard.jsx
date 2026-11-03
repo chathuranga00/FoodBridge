@@ -36,6 +36,11 @@ import {
   Send,
   Truck,
   Sparkles,
+  CreditCard,
+  Zap,
+  CreditCard,
+  CheckCircle2,
+  Zap,
 } from 'lucide-react'
 import Card from '../../components/common/Card'
 import Button from '../../components/common/Button'
@@ -47,7 +52,7 @@ import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
 import PartnershipTimeline from '../../components/common/PartnershipTimeline'
 import PartnershipMessageThread from '../../components/common/PartnershipMessageThread'
-import { profileApi, foodListingApi, foodRescueApi, groceryApi, contributionApi, partnershipApi, campaignApi, impactApi, promotionApi } from '../../api/client'
+import { profileApi, foodListingApi, foodRescueApi, groceryApi, contributionApi, partnershipApi, campaignApi, impactApi, promotionApi, subscriptionApi } from '../../api/client'
 import ImpactAnalyticsView from '../../components/impact/ImpactAnalyticsView'
 import { SRI_LANKA_DISTRICTS, BUSINESS_TYPES, GROCERY_CATEGORIES } from '../../utils/constants'
 
@@ -147,6 +152,18 @@ export default function BusinessDashboard() {
     costLkr: 3500.0,
     isActive: true,
   })
+
+  // Business Subscription Packages & Revenue State (Rule 8 Financial Segregation)
+  const [currentSubscription, setCurrentSubscription] = useState(null)
+  const [subscriptionPackages, setSubscriptionPackages] = useState([])
+  const [subscriptionHistory, setSubscriptionHistory] = useState([])
+  const [loadingSubscriptions, setLoadingSubscriptions] = useState(false)
+  const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false)
+  const [selectedPackage, setSelectedPackage] = useState(null)
+  const [subscribeCycle, setSubscribeCycle] = useState('MONTHLY')
+  const [subscribePaymentRef, setSubscribePaymentRef] = useState('')
+  const [subscribeNotes, setSubscribeNotes] = useState('')
+  const [submittingSubscription, setSubmittingSubscription] = useState(false)
 
   // Modal States
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
@@ -266,6 +283,7 @@ export default function BusinessDashboard() {
             loadPartnerships(),
             loadBusinessRecognitions(profileRes.data.id),
             loadActiveCampaigns(),
+            loadSubscriptionData(),
           ])
         }
       }
@@ -336,6 +354,59 @@ export default function BusinessDashboard() {
       showToast('Could not load promotions data', 'error')
     } finally {
       setLoadingPromotions(false)
+    }
+  }
+
+  const loadSubscriptionData = async () => {
+    try {
+      setLoadingSubscriptions(true)
+      const [currRes, pkgsRes, histRes] = await Promise.all([
+        subscriptionApi.getCurrent(),
+        subscriptionApi.getPackages(),
+        subscriptionApi.getHistory(),
+      ])
+      setCurrentSubscription(currRes.data || null)
+      setSubscriptionPackages(pkgsRes.data || [])
+      setSubscriptionHistory(histRes.data || [])
+    } catch (err) {
+      console.error('Failed to load subscription data', err)
+    } finally {
+      setLoadingSubscriptions(false)
+    }
+  }
+
+  const handleOpenSubscribeModal = (pkg) => {
+    setSelectedPackage(pkg)
+    setSubscribeCycle('MONTHLY')
+    setSubscribePaymentRef('')
+    setSubscribeNotes('')
+    setIsSubscribeModalOpen(true)
+  }
+
+  const handleSubscribeSubmit = async (e) => {
+    e.preventDefault()
+    if (!selectedPackage) return
+    if (!subscribePaymentRef.trim()) {
+      showToast('Please provide your bank transfer transaction reference number', 'error')
+      return
+    }
+
+    try {
+      setSubmittingSubscription(true)
+      await subscriptionApi.subscribe({
+        plan: selectedPackage.plan,
+        billingCycle: subscribeCycle,
+        paymentReference: subscribePaymentRef.trim(),
+        notes: subscribeNotes.trim() || undefined,
+      })
+      showToast(`Subscription request for ${selectedPackage.name} submitted successfully! Awaiting admin activation.`, 'success')
+      setIsSubscribeModalOpen(false)
+      loadSubscriptionData()
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to submit subscription request'
+      showToast(msg, 'error')
+    } finally {
+      setSubmittingSubscription(false)
     }
   }
 
@@ -1908,6 +1979,43 @@ export default function BusinessDashboard() {
           <Sparkles size={18} />
           Promotions & Growth
         </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('subscriptions')
+            loadSubscriptionData()
+          }}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'subscriptions' ? '3px solid var(--color-primary)' : '3px solid transparent',
+            color: activeTab === 'subscriptions' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <CreditCard size={18} />
+          Subscription Packages
+          {currentSubscription?.plan && (
+            <span
+              style={{
+                fontSize: '0.7rem',
+                fontWeight: 800,
+                padding: '0.15rem 0.45rem',
+                borderRadius: '999px',
+                background: currentSubscription.plan === 'PREMIUM' ? '#fef3c7' : (currentSubscription.plan === 'PROMOTION' ? '#e0e7ff' : '#f1f5f9'),
+                color: currentSubscription.plan === 'PREMIUM' ? '#b45309' : (currentSubscription.plan === 'PROMOTION' ? '#4338ca' : '#475569'),
+              }}
+            >
+              {currentSubscription.plan}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Tab: Grocery Offers */}
@@ -2277,6 +2385,47 @@ export default function BusinessDashboard() {
       {/* Tab: Promotions & Growth Management */}
       {activeTab === 'promotions' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Feature Gating Upgrade Banner */}
+          {promoAnalytics?.isGated && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%)',
+                border: '1px solid #fde68a',
+                borderRadius: '12px',
+                padding: '1.25rem 1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ background: '#f59e0b', color: '#fff', borderRadius: '50%', padding: '0.6rem', display: 'flex' }}>
+                  <Zap size={22} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, color: '#92400e', fontSize: '1rem' }}>
+                    Feature Gating: Free Starter Plan ({promoAnalytics?.activePromotions || 0} / {promoAnalytics?.maxAllowedPromotions || 1} Promotion Active)
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#b45309', marginTop: '0.2rem' }}>
+                    Detailed CTR and conversion analytics, featured placement, and up to 5 or unlimited promotions require a Promotion or Premium subscription.
+                  </div>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => {
+                  setActiveTab('subscriptions')
+                  loadSubscriptionData()
+                }}
+              >
+                Upgrade to Unlock Analytics
+              </Button>
+            </div>
+          )}
+
           {/* Analytics Summary Header Cards */}
           <div
             style={{
@@ -2469,6 +2618,356 @@ export default function BusinessDashboard() {
                               Delete
                             </Button>
                           </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Tab: Business Subscription Packages & Revenue Management */}
+      {activeTab === 'subscriptions' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Current Subscription Status Banner */}
+          <div
+            style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '16px',
+              padding: '1.5rem 2rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+                  <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0 }}>
+                    {currentSubscription?.plan === 'PREMIUM'
+                      ? 'Enterprise Premium Membership'
+                      : currentSubscription?.plan === 'PROMOTION'
+                      ? 'Growth Promotion Package'
+                      : 'Free Starter Plan'}
+                  </h2>
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '999px',
+                      background:
+                        currentSubscription?.status === 'ACTIVE'
+                          ? '#dcfce7'
+                          : currentSubscription?.status === 'PENDING_ACTIVATION'
+                          ? '#fef3c7'
+                          : '#f1f5f9',
+                      color:
+                        currentSubscription?.status === 'ACTIVE'
+                          ? '#15803d'
+                          : currentSubscription?.status === 'PENDING_ACTIVATION'
+                          ? '#b45309'
+                          : '#475569',
+                    }}
+                  >
+                    {currentSubscription?.status === 'PENDING_ACTIVATION' ? 'VERIFICATION PENDING' : (currentSubscription?.status || 'ACTIVE')}
+                  </span>
+                </div>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', margin: 0 }}>
+                  Invoice: <strong>{currentSubscription?.invoiceNumber || 'FREE-TIER'}</strong> &bull; Billing Cycle:{' '}
+                  <strong>{currentSubscription?.billingCycle || 'MONTHLY'}</strong> &bull; Amount:{' '}
+                  <strong>{currentSubscription?.priceLkr > 0 ? `LKR ${Number(currentSubscription.priceLkr).toLocaleString()}` : 'Included Free'}</strong>
+                </p>
+              </div>
+
+              {currentSubscription?.plan !== 'PREMIUM' && (
+                <Button
+                  variant="primary"
+                  icon={<Zap size={16} />}
+                  onClick={() => {
+                    const premPkg = subscriptionPackages.find((p) => p.plan === 'PREMIUM') || subscriptionPackages[2]
+                    if (premPkg) handleOpenSubscribeModal(premPkg)
+                  }}
+                >
+                  Upgrade to Premium
+                </Button>
+              )}
+            </div>
+
+            {currentSubscription?.status === 'PENDING_ACTIVATION' && (
+              <div
+                style={{
+                  background: '#fffbeb',
+                  border: '1px solid #fef3c7',
+                  borderRadius: '10px',
+                  padding: '1rem',
+                  fontSize: '0.88rem',
+                  color: '#92400e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                }}
+              >
+                <AlertTriangle size={20} color="#f59e0b" style={{ flexShrink: 0 }} />
+                <div>
+                  <strong>Bank Transfer Verification in Progress:</strong> We received your transfer slip reference{' '}
+                  <code style={{ background: '#fef3c7', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                    {currentSubscription?.paymentReference || 'N/A'}
+                  </code>
+                  . Platform administrators verify manual transfers and activate packages within 24 hours.
+                </div>
+              </div>
+            )}
+
+            {/* Subscription Entitlement Pills */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1rem',
+                paddingTop: '0.75rem',
+                borderTop: '1px solid var(--color-border)',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Active Promo Slots
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '0.2rem' }}>
+                  {promoAnalytics?.activePromotions || 0} / {currentSubscription?.maxPromotions || 1} slots used
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Directory & Map Placement
+                </div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: '0.2rem', color: currentSubscription?.hasFeaturedPlacement ? '#15803d' : '#64748b' }}>
+                  {currentSubscription?.hasFeaturedPlacement ? '⭐ Featured Placement' : 'Standard Listing'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Analytics Access
+                </div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: '0.2rem', color: currentSubscription?.hasAnalytics ? '#15803d' : '#64748b' }}>
+                  {currentSubscription?.hasAnalytics ? 'Full Real-Time CTR & Tracking' : 'Gated / Basic Aggregate'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Sponsored Campaigns
+                </div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: '0.2rem', color: currentSubscription?.hasSponsoredCampaigns ? '#15803d' : '#64748b' }}>
+                  {currentSubscription?.hasSponsoredCampaigns ? 'Eligible to Sponsor' : 'Premium Only'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing Tier Comparison Cards */}
+          <div>
+            <div style={{ marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0 0 0.25rem 0' }}>Available Business Packages</h3>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', margin: 0 }}>
+                Choose the right visibility package to amplify your sustainable culinary and surplus food operations across Sri Lanka.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '1.5rem',
+              }}
+            >
+              {subscriptionPackages.map((pkg) => {
+                const isCurrent = currentSubscription?.plan === pkg.plan
+                const isPremium = pkg.plan === 'PREMIUM'
+                const isPromotion = pkg.plan === 'PROMOTION'
+
+                return (
+                  <div
+                    key={pkg.plan}
+                    style={{
+                      background: 'var(--color-surface)',
+                      border: isCurrent
+                        ? '2px solid var(--color-primary)'
+                        : isPremium
+                        ? '2px solid #f59e0b'
+                        : '1px solid var(--color-border)',
+                      borderRadius: '16px',
+                      padding: '1.75rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      position: 'relative',
+                      boxShadow: isPremium ? '0 10px 25px -5px rgba(245, 158, 11, 0.15)' : 'none',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            padding: '0.2rem 0.6rem',
+                            borderRadius: '999px',
+                            background: isPremium ? '#fef3c7' : isPromotion ? '#e0e7ff' : '#f1f5f9',
+                            color: isPremium ? '#b45309' : isPromotion ? '#4338ca' : '#475569',
+                          }}
+                        >
+                          {pkg.badge || pkg.plan}
+                        </span>
+                        {isCurrent && (
+                          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                            Current Plan
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.35rem 0' }}>{pkg.name}</h4>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem', minHeight: '38px' }}>
+                        {pkg.description}
+                      </p>
+
+                      <div style={{ marginBottom: '1.5rem', paddingBottom: '1.25rem', borderBottom: '1px solid var(--color-border)' }}>
+                        <span style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--color-text)' }}>
+                          {pkg.priceMonthly > 0 ? `LKR ${Number(pkg.priceMonthly).toLocaleString()}` : 'Free'}
+                        </span>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                          {pkg.priceMonthly > 0 ? ' / month' : ' forever'}
+                        </span>
+                        {pkg.priceAnnual > 0 && (
+                          <div style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 700, marginTop: '0.2rem' }}>
+                            or LKR {Number(pkg.priceAnnual).toLocaleString()} / year (Save 16%)
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '1.5rem' }}>
+                        {pkg.features?.map((feat, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.85rem' }}>
+                            <CheckCircle2 size={16} color="#15803d" style={{ marginTop: '0.15rem', flexShrink: 0 }} />
+                            <span>{feat}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      {isCurrent ? (
+                        <Button variant="outline" disabled style={{ width: '100%', opacity: 0.8 }}>
+                          Active Plan
+                        </Button>
+                      ) : pkg.plan === 'FREE' ? (
+                        <Button variant="outline" disabled style={{ width: '100%', opacity: 0.6 }}>
+                          Default Free
+                        </Button>
+                      ) : (
+                        <Button
+                          variant={isPremium ? 'primary' : 'outline'}
+                          style={{ width: '100%' }}
+                          icon={<Zap size={15} />}
+                          onClick={() => handleOpenSubscribeModal(pkg)}
+                        >
+                          Select {pkg.name}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Subscription & Invoice History (Rule 8 Financial Segregation) */}
+          <Card
+            title="Subscription & Invoice History"
+            subtitle="Platform operational revenue records and payment references (strictly segregated from charity contributions under Rule 8)."
+          >
+            {loadingSubscriptions ? (
+              <Loader text="Loading subscription history..." />
+            ) : subscriptionHistory.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
+                <Receipt size={36} color="#94a3b8" style={{ margin: '0 auto 0.5rem' }} />
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-text)' }}>
+                  No Invoices or Upgrade Requests
+                </div>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', maxWidth: '380px', margin: '0 auto' }}>
+                  You are currently using the default Free Starter tier. When you upgrade, your bank transfer invoices and activation history will be listed here.
+                </p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left', color: 'var(--color-text-muted)' }}>
+                      <th style={{ padding: '0.75rem 1rem' }}>Invoice #</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Plan</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Cycle</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Amount</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Payment Ref</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Status</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subscriptionHistory.map((sub) => (
+                      <tr key={sub.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '1rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                          {sub.invoiceNumber}
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '4px',
+                              background: sub.plan === 'PREMIUM' ? '#fef3c7' : '#e0e7ff',
+                              color: sub.plan === 'PREMIUM' ? '#b45309' : '#4338ca',
+                            }}
+                          >
+                            {sub.plan}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem', fontSize: '0.82rem' }}>{sub.billingCycle}</td>
+                        <td style={{ padding: '1rem', fontWeight: 700 }}>
+                          LKR {Number(sub.priceLkr).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '1rem', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
+                          {sub.paymentReference || 'N/A'}
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '999px',
+                              background:
+                                sub.status === 'ACTIVE'
+                                  ? '#dcfce7'
+                                  : sub.status === 'PENDING_ACTIVATION'
+                                  ? '#fef3c7'
+                                  : '#f1f5f9',
+                              color:
+                                sub.status === 'ACTIVE'
+                                  ? '#15803d'
+                                  : sub.status === 'PENDING_ACTIVATION'
+                                  ? '#b45309'
+                                  : '#64748b',
+                            }}
+                          >
+                            {sub.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem', color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>
+                          {sub.createdAt ? new Date(sub.createdAt).toLocaleDateString() : 'N/A'}
                         </td>
                       </tr>
                     ))}
@@ -3648,6 +4147,129 @@ export default function BusinessDashboard() {
             </Button>
           </div>
         </form>
+      </Modal>
+      {/* Modal: Subscribe / Upgrade Subscription Package */}
+      <Modal
+        isOpen={isSubscribeModalOpen}
+        onClose={() => setIsSubscribeModalOpen(false)}
+        title={`Subscribe to ${selectedPackage?.name || 'Package'}`}
+        subtitle="Manual Bank Transfer Activation (No live credit card gateway required)"
+        maxWidth="600px"
+      >
+        {selectedPackage && (
+          <form onSubmit={handleSubscribeSubmit}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Billing Cycle Selector */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                  Billing Cycle
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSubscribeCycle('MONTHLY')}
+                    style={{
+                      padding: '0.85rem',
+                      borderRadius: '10px',
+                      border: subscribeCycle === 'MONTHLY' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                      background: subscribeCycle === 'MONTHLY' ? '#eff6ff' : 'var(--color-surface)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Monthly Billing</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '0.2rem' }}>
+                      LKR {Number(selectedPackage.priceMonthly).toLocaleString()}
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSubscribeCycle('ANNUAL')}
+                    style={{
+                      padding: '0.85rem',
+                      borderRadius: '10px',
+                      border: subscribeCycle === 'ANNUAL' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                      background: subscribeCycle === 'ANNUAL' ? '#eff6ff' : 'var(--color-surface)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      position: 'relative',
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '8px',
+                        background: '#15803d',
+                        color: '#fff',
+                        fontSize: '0.65rem',
+                        fontWeight: 800,
+                        padding: '0.1rem 0.4rem',
+                        borderRadius: '999px',
+                      }}
+                    >
+                      SAVE 16%
+                    </span>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Annual Billing</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '0.2rem' }}>
+                      LKR {Number(selectedPackage.priceAnnual).toLocaleString()}
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Bank Transfer Instructions */}
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '1rem',
+                  fontSize: '0.85rem',
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-text)' }}>
+                  Bank Transfer Instructions (Sri Lanka):
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', color: 'var(--color-text-muted)' }}>
+                  <div>Bank: <strong>Bank of Ceylon (BOC)</strong></div>
+                  <div>Branch: <strong>Colombo Corporate</strong></div>
+                  <div>Account Name: <strong>FoodBridge Platform Operations</strong></div>
+                  <div>Account No: <strong>009283748291</strong></div>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.5rem', fontStyle: 'italic' }}>
+                  * Please transfer the exact amount and enter the bank deposit slip number or transaction reference ID below.
+                </div>
+              </div>
+
+              <Input
+                label="Bank Transfer Reference / Transaction ID *"
+                placeholder="e.g. BOC-TX-992019 or Slip Ref #10294"
+                value={subscribePaymentRef}
+                onChange={(e) => setSubscribePaymentRef(e.target.value)}
+                required
+              />
+
+              <Textarea
+                label="Notes / Slip Details (Optional)"
+                placeholder="e.g. Transferred via online banking from Commercial Bank account ending in 4102."
+                value={subscribeNotes}
+                onChange={(e) => setSubscribeNotes(e.target.value)}
+                rows={2}
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <Button type="button" variant="outline" onClick={() => setIsSubscribeModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" loading={submittingSubscription}>
+                  Submit Subscription Request
+                </Button>
+              </div>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   )

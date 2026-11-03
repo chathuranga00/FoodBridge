@@ -125,4 +125,18 @@ public class Campaign extends BaseEntity {
 
     @Column(name = "handover_instructions", columnDefinition = "TEXT")
     private String handoverInstructions;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sponsor_business_id")
+    private Business sponsorBusiness;
+
+    @Builder.Default
+    @Column(name = "is_sponsored")
+    private Boolean isSponsored = false;
+
+    @Column(name = "sponsorship_message", length = 255)
+    private String sponsorshipMessage;
+
+    @Column(name = "sponsorship_amount", precision = 12, scale = 2)
+    private BigDecimal sponsorshipAmount;
 }

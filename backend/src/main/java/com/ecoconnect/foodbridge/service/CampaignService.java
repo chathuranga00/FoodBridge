@@ -31,6 +31,8 @@ public class CampaignService {
     private final UserRepository userRepository;
     private final AuditLogRepository auditLogRepository;
     private final VerificationGuardService verificationGuardService;
+    private final BusinessRepository businessRepository;
+    private final SubscriptionService subscriptionService;
 
     public CampaignService(CampaignRepository campaignRepository,
                            CampaignUpdateRepository campaignUpdateRepository,
@@ -38,7 +40,9 @@ public class CampaignService {
                            CharityRepository charityRepository,
                            UserRepository userRepository,
                            AuditLogRepository auditLogRepository,
-                           VerificationGuardService verificationGuardService) {
+                           VerificationGuardService verificationGuardService,
+                           BusinessRepository businessRepository,
+                           SubscriptionService subscriptionService) {
         this.campaignRepository = campaignRepository;
         this.campaignUpdateRepository = campaignUpdateRepository;
         this.contributionRepository = contributionRepository;
@@ -46,6 +50,8 @@ public class CampaignService {
         this.userRepository = userRepository;
         this.auditLogRepository = auditLogRepository;
         this.verificationGuardService = verificationGuardService;
+        this.businessRepository = businessRepository;
+        this.subscriptionService = subscriptionService;
     }
 
     /**
@@ -341,5 +347,45 @@ public class CampaignService {
         log.info("User {} pledged {} units to campaign {}. Status: PLEDGED. Awaiting charity receipt confirmation.", userEmail, qty, campaignId);
 
         return CampaignResponse.fromEntity(updated);
+    }
+
+    /**
+     * Sponsoring community sustainability campaigns is exclusive to businesses
+     * with an active PREMIUM subscription package.
+     */
+    @Transactional
+    public CampaignResponse sponsorCampaign(String userEmail, UUID campaignId, CampaignSponsorRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
+
+        Business business = businessRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new BadRequestException("Only registered businesses can sponsor campaigns"));
+
+        SubscriptionPlan activePlan = subscriptionService.getActivePlanForBusiness(business.getId());
+        if (activePlan != SubscriptionPlan.PREMIUM) {
+            throw new BadRequestException("Sponsoring community sustainability campaigns is exclusive to Premium subscription partners.");
+        }
+
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException("Campaign not found with ID: " + campaignId));
+
+        if (campaign.getStatus() != CampaignStatus.ACTIVE && campaign.getStatus() != CampaignStatus.APPROVED) {
+            throw new BadRequestException("Can only sponsor active campaigns (current status: " + campaign.getStatus() + ")");
+        }
+
+        campaign.setSponsorBusiness(business);
+        campaign.setIsSponsored(true);
+        campaign.setSponsorshipMessage(request != null && request.getMessage() != null && !request.getMessage().isBlank()
+                ? request.getMessage().trim()
+                : "Proudly sponsored by " + business.getBusinessName());
+        campaign.setSponsorshipAmount(request != null && request.getAmountLkr() != null
+                ? request.getAmountLkr()
+                : java.math.BigDecimal.valueOf(10000.00));
+
+        Campaign saved = campaignRepository.save(campaign);
+        log.info("Business {} (PREMIUM) successfully sponsored sustainability campaign {} ('{}')",
+                business.getBusinessName(), campaignId, saved.getTitle());
+
+        return CampaignResponse.fromEntity(saved);
     }
 }

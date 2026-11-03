@@ -38,6 +38,13 @@ public class PromotionController {
         return ResponseEntity.ok(analytics);
     }
 
+    @GetMapping("/analytics/detailed")
+    @PreAuthorize("hasAnyRole('RESTAURANT', 'GROCERY')")
+    public ResponseEntity<PromotionAnalyticsDto> getDetailedPromotionAnalytics(Authentication authentication) {
+        PromotionAnalyticsDto analytics = promotionService.getDetailedPromotionAnalytics(authentication.getName());
+        return ResponseEntity.ok(analytics);
+    }
+
     @PostMapping
     @PreAuthorize("hasAnyRole('RESTAURANT', 'GROCERY')")
     public ResponseEntity<PromotionResponseDto> createPromotion(

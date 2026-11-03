@@ -57,6 +57,12 @@ public class CampaignResponse {
     private String paymentInstructions;
     private String handoverInstructions;
 
+    private UUID sponsorBusinessId;
+    private String sponsorBusinessName;
+    private Boolean isSponsored;
+    private String sponsorshipMessage;
+    private java.math.BigDecimal sponsorshipAmount;
+
     public static CampaignResponse fromEntity(Campaign c) {
         UUID chId = null;
         String chName = null;
@@ -109,6 +115,11 @@ public class CampaignResponse {
                 .createdAt(c.getCreatedAt())
                 .paymentInstructions(c.getPaymentInstructions())
                 .handoverInstructions(c.getHandoverInstructions())
+                .sponsorBusinessId(c.getSponsorBusiness() != null ? c.getSponsorBusiness().getId() : null)
+                .sponsorBusinessName(c.getSponsorBusiness() != null ? c.getSponsorBusiness().getBusinessName() : null)
+                .isSponsored(Boolean.TRUE.equals(c.getIsSponsored()))
+                .sponsorshipMessage(c.getSponsorshipMessage())
+                .sponsorshipAmount(c.getSponsorshipAmount())
                 .build();
     }
 }

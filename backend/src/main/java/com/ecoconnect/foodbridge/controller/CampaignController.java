@@ -107,6 +107,19 @@ public class CampaignController {
     }
 
     /**
+     * Business with active PREMIUM subscription sponsors a community sustainability campaign.
+     */
+    @PostMapping("/campaigns/{id}/sponsor")
+    @PreAuthorize("hasAnyRole('RESTAURANT', 'GROCERY')")
+    public ResponseEntity<CampaignResponse> sponsorCampaign(
+            Authentication authentication,
+            @PathVariable UUID id,
+            @RequestBody(required = false) CampaignSponsorRequest request) {
+        CampaignResponse response = campaignService.sponsorCampaign(authentication.getName(), id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Admin Campaign Moderation: List all pending campaigns.
      */
     @GetMapping("/admin/campaigns/pending")

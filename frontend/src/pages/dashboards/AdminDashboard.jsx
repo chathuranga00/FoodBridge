@@ -26,6 +26,7 @@ import {
   Star,
   CheckCircle2,
   TrendingUp,
+  CreditCard,
 } from 'lucide-react'
 import Card from '../../components/common/Card'
 import Button from '../../components/common/Button'
@@ -35,7 +36,7 @@ import Textarea from '../../components/common/Textarea'
 import Loader from '../../components/common/Loader'
 import PartnershipTimeline from '../../components/common/PartnershipTimeline'
 import PartnershipMessageThread from '../../components/common/PartnershipMessageThread'
-import { adminApi, campaignApi, partnershipApi, impactApi, promotionApi } from '../../api/client'
+import { adminApi, campaignApi, partnershipApi, impactApi, promotionApi, adminSubscriptionApi } from '../../api/client'
 import ImpactAnalyticsView from '../../components/impact/ImpactAnalyticsView'
 
 export default function AdminDashboard() {
@@ -60,6 +61,11 @@ export default function AdminDashboard() {
   const [isCampaignModerateModalOpen, setIsCampaignModerateModalOpen] = useState(false)
   const [campaignModerationDecision, setCampaignModerationDecision] = useState('APPROVE')
   const [campaignModerationReason, setCampaignModerationReason] = useState('')
+
+  // Business Subscriptions Management State (Rule 8 Financial Segregation)
+  const [adminSubscriptions, setAdminSubscriptions] = useState([])
+  const [loadingSubscriptions, setLoadingSubscriptions] = useState(false)
+  const [subStatusFilter, setSubStatusFilter] = useState('ALL')
 
   // CSR Partnerships Monitoring State
   const [adminPartnerships, setAdminPartnerships] = useState([])
@@ -118,6 +124,51 @@ export default function AdminDashboard() {
       showToast('Could not load promotions or business directory', 'error')
     } finally {
       setLoadingAdminPromos(false)
+    }
+  }
+
+  const loadAdminSubscriptions = async () => {
+    try {
+      setLoadingSubscriptions(true)
+      const params = subStatusFilter !== 'ALL' ? { status: subStatusFilter } : {}
+      const res = await adminSubscriptionApi.getAll(params)
+      setAdminSubscriptions(res.data || [])
+    } catch (err) {
+      console.error('Error loading subscriptions', err)
+      showToast('Could not load subscriptions', 'error')
+    } finally {
+      setLoadingSubscriptions(false)
+    }
+  }
+
+  const handleActivateSub = async (subId) => {
+    try {
+      await adminSubscriptionApi.activate(subId, { notes: 'Bank transfer verified and subscription activated' })
+      showToast('Subscription activated successfully!', 'success')
+      loadAdminSubscriptions()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to activate subscription', 'error')
+    }
+  }
+
+  const handleRenewSub = async (subId, days = 30) => {
+    try {
+      await adminSubscriptionApi.renew(subId, { extensionDays: days, notes: `Renewed for ${days} days` })
+      showToast(`Subscription renewed for ${days} days!`, 'success')
+      loadAdminSubscriptions()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to renew subscription', 'error')
+    }
+  }
+
+  const handleCancelSub = async (subId) => {
+    if (!window.confirm('Are you sure you want to cancel this business subscription?')) return
+    try {
+      await adminSubscriptionApi.cancel(subId, { notes: 'Cancelled by administrator' })
+      showToast('Subscription cancelled', 'info')
+      loadAdminSubscriptions()
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to cancel subscription', 'error')
     }
   }
 
@@ -772,6 +823,43 @@ export default function AdminDashboard() {
           <Sparkles size={18} />
           Promotions & Featured Partners
         </button>
+
+        <button
+          onClick={() => {
+            setActiveAdminTab('subscriptions')
+            loadAdminSubscriptions()
+          }}
+          style={{
+            padding: '0.75rem 1.25rem',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeAdminTab === 'subscriptions' ? '3px solid var(--color-primary)' : '3px solid transparent',
+            color: activeAdminTab === 'subscriptions' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <CreditCard size={18} />
+          Subscription Packages
+          {adminSubscriptions.filter((s) => s.status === 'PENDING_ACTIVATION').length > 0 && (
+            <span
+              style={{
+                fontSize: '0.7rem',
+                fontWeight: 800,
+                background: '#f59e0b',
+                color: '#fff',
+                padding: '0.15rem 0.5rem',
+                borderRadius: '999px',
+              }}
+            >
+              {adminSubscriptions.filter((s) => s.status === 'PENDING_ACTIVATION').length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Tab: Organization Verification Queue (Rule 2) */}
@@ -1120,6 +1208,259 @@ export default function AdminDashboard() {
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Tab: Business Subscriptions Management (Rule 8 Financial Segregation) */}
+      {activeAdminTab === 'subscriptions' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Rule 8 Compliance Notice */}
+          <div
+            style={{
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: '12px',
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}
+          >
+            <ShieldCheck size={28} color="#15803d" style={{ flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 800, color: '#166534', fontSize: '0.98rem' }}>
+                Rule 8 Financial Segregation Enforced
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#15803d', marginTop: '0.2rem' }}>
+                All platform operational SaaS subscription fees are strictly maintained in <code>business_subscriptions</code> and isolated from community charity relief donations and campaign ledgers.
+              </div>
+            </div>
+          </div>
+
+          {/* Revenue & Subscription Metric Cards */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem',
+            }}
+          >
+            <div style={{ background: 'var(--color-surface)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                Total Platform Revenue
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                LKR {adminSubscriptions
+                  .filter((s) => s.status === 'ACTIVE')
+                  .reduce((acc, s) => acc + (Number(s.priceLkr) || 0), 0)
+                  .toLocaleString()}
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--color-surface)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                Active Subscriptions
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#16a34a' }}>
+                {adminSubscriptions.filter((s) => s.status === 'ACTIVE').length}
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--color-surface)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                Pending Activation
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#f59e0b' }}>
+                {adminSubscriptions.filter((s) => s.status === 'PENDING_ACTIVATION').length}
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--color-surface)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                Enterprise Premium Partners
+              </div>
+              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#7c3aed' }}>
+                {adminSubscriptions.filter((s) => s.plan === 'PREMIUM' && s.status === 'ACTIVE').length}
+              </div>
+            </div>
+          </div>
+
+          {/* Subscriptions Table */}
+          <Card
+            title="Business Subscriptions & Manual Bank Transfer Verifications"
+            subtitle="Review manual bank transfer references, activate requested packages, renew durations, or cancel subscriptions."
+            action={
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {['ALL', 'PENDING_ACTIVATION', 'ACTIVE', 'CANCELLED'].map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => {
+                      setSubStatusFilter(st)
+                      setTimeout(loadAdminSubscriptions, 0)
+                    }}
+                    style={{
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '999px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      border: '1px solid var(--color-border)',
+                      background: subStatusFilter === st ? 'var(--color-primary)' : 'var(--color-surface)',
+                      color: subStatusFilter === st ? '#fff' : 'var(--color-text-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {st === 'ALL' ? 'All' : st.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+            }
+          >
+            {loadingSubscriptions ? (
+              <Loader text="Loading subscriptions..." />
+            ) : adminSubscriptions.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                <CreditCard size={36} color="#94a3b8" style={{ margin: '0 auto 0.5rem' }} />
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-text)' }}>
+                  No Business Subscriptions Found
+                </div>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                  No subscriptions match the selected status filter.
+                </p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left', color: 'var(--color-text-muted)' }}>
+                      <th style={{ padding: '0.75rem 1rem' }}>Business</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Plan</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Cycle</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Amount</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Payment Ref / Slip</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Status</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>End Date</th>
+                      <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminSubscriptions
+                      .filter((s) => subStatusFilter === 'ALL' || s.status === subStatusFilter)
+                      .map((sub) => (
+                        <tr key={sub.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '1rem' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--color-text)' }}>{sub.businessName}</div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{sub.businessEmail}</div>
+                          </td>
+                          <td style={{ padding: '1rem' }}>
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 800,
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '4px',
+                                background: sub.plan === 'PREMIUM' ? '#fef3c7' : '#e0e7ff',
+                                color: sub.plan === 'PREMIUM' ? '#b45309' : '#4338ca',
+                              }}
+                            >
+                              {sub.plan}
+                            </span>
+                          </td>
+                          <td style={{ padding: '1rem', fontSize: '0.82rem' }}>{sub.billingCycle}</td>
+                          <td style={{ padding: '1rem', fontWeight: 700 }}>
+                            LKR {Number(sub.priceLkr).toLocaleString()}
+                          </td>
+                          <td style={{ padding: '1rem', fontSize: '0.82rem' }}>
+                            <code style={{ background: '#f1f5f9', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                              {sub.paymentReference || 'N/A'}
+                            </code>
+                            {sub.notes && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.2rem' }}>
+                                {sub.notes}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '1rem' }}>
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '999px',
+                                background:
+                                  sub.status === 'ACTIVE'
+                                    ? '#dcfce7'
+                                    : sub.status === 'PENDING_ACTIVATION'
+                                    ? '#fef3c7'
+                                    : '#f1f5f9',
+                                color:
+                                  sub.status === 'ACTIVE'
+                                    ? '#15803d'
+                                    : sub.status === 'PENDING_ACTIVATION'
+                                    ? '#b45309'
+                                    : '#64748b',
+                              }}
+                            >
+                              {sub.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: '1rem', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
+                            {sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'Continuous'}
+                          </td>
+                          <td style={{ padding: '1rem', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                              {sub.status === 'PENDING_ACTIVATION' && (
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                  onClick={() => handleActivateSub(sub.id)}
+                                >
+                                  Verify & Activate
+                                </Button>
+                              )}
+                              {sub.status === 'ACTIVE' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleRenewSub(sub.id, 30)}
+                                  >
+                                    +30d
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleRenewSub(sub.id, 365)}
+                                  >
+                                    +1yr
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                                    onClick={() => handleCancelSub(sub.id)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </>
+                              )}
+                              {sub.status === 'CANCELLED' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleActivateSub(sub.id)}
+                                >
+                                  Reactivate
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>

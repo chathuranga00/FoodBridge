@@ -323,7 +323,7 @@ class BusinessProfileAndPromotionsTests {
     @DisplayName("Promo Analytics: tracking endpoints increment views, clicks, and redemptions")
     void promoAnalytics_incrementsEventsCorrectly() throws Exception {
         String email = "analytics.resto@foodbridge.lk";
-        Business business = createTestBusiness(email, "Analytics Bistro", BusinessType.RESTAURANT, true, false);
+        Business business = createTestBusiness(email, "Analytics Bistro", BusinessType.RESTAURANT, true, true);
         String token = getAuthToken(email, "Password123!", Role.RESTAURANT);
 
         Promotion promotion = Promotion.builder()

@@ -175,6 +175,7 @@ export const campaignApi = {
   postCampaignUpdate: (id, data) => apiClient.post(`/campaigns/${id}/updates`, data),
   getCampaignUpdates: (id) => apiClient.get(`/campaigns/${id}/updates`),
   pledgeToCampaign: (id, data) => apiClient.post(`/campaigns/${id}/pledge`, data),
+  sponsorCampaign: (id, data) => apiClient.post(`/campaigns/${id}/sponsor`, data || {}),
   getPendingCampaigns: () => apiClient.get('/admin/campaigns/pending'),
   moderateCampaign: (id, data) => apiClient.post(`/admin/campaigns/${id}/moderate`, data),
 }
@@ -296,6 +297,22 @@ export const animalWelfareApi = {
   deleteRequirement: (id) => apiClient.delete(`/animal-welfare/requirements/${id}`),
   getAvailableFeed: () => apiClient.get('/animal-welfare/available-feed'),
   getAnimalOrgRequests: () => apiClient.get('/food-rescue/animal-org-requests'),
+}
+
+// Business Subscription Packages & SaaS Revenue API (Rule 8 Financial Segregation)
+export const subscriptionApi = {
+  getPackages: () => apiClient.get('/subscriptions/packages'),
+  getCurrent: () => apiClient.get('/subscriptions/current'),
+  subscribe: (data) => apiClient.post('/subscriptions/subscribe', data),
+  getHistory: () => apiClient.get('/subscriptions/history'),
+}
+
+// Admin Business Subscription Management API
+export const adminSubscriptionApi = {
+  getAll: (params) => apiClient.get('/admin/subscriptions', { params }),
+  activate: (id, data) => apiClient.post(`/admin/subscriptions/${id}/activate`, data || {}),
+  renew: (id, data) => apiClient.post(`/admin/subscriptions/${id}/renew`, data || {}),
+  cancel: (id, data) => apiClient.post(`/admin/subscriptions/${id}/cancel`, data || {}),
 }
 
 
