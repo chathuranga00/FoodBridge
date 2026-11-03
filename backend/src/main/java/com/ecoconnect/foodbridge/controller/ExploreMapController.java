@@ -46,3 +46,4 @@ public class ExploreMapController {
         return getExploreMarkers(type, category, availableOnly, district, search, userLat, userLng, radiusKm);
     }
 }
+

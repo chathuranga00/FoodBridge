@@ -39,3 +39,4 @@ public class MapMarkerResponse {
     private Boolean isVerified;
     private String organizationName;
 }
+

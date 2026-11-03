@@ -7,3 +7,4 @@ public enum MapMarkerType {
     CAMPAIGN,
     CHARITY
 }
+
