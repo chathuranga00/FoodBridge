@@ -428,6 +428,7 @@ export default function AdminDashboard() {
     if (location.pathname !== targetPath) {
       navigate(targetPath)
     }
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   // Synchronize route changes (sidebar clicks) to active tab & trigger respective loader
@@ -435,6 +436,7 @@ export default function AdminDashboard() {
     const cleanPath = (location.pathname || '').replace(/\/+$/, '')
     const tab = PATH_TO_TAB[cleanPath] || PATH_TO_TAB[location.pathname] || 'overview'
     setActiveAdminTab(tab)
+    window.scrollTo({ top: 0, behavior: 'instant' })
     if (tab === 'users') loadUsers()
     if (tab === 'verifications') loadPendingVerifications()
     if (tab === 'listings') loadListings()

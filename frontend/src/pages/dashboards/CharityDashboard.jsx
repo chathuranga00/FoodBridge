@@ -75,13 +75,26 @@ export default function CharityDashboard() {
     '/dashboard/charity/overview': 'overview',
     '/dashboard/charity/available-food': 'browse',
     '/dashboard/charity/browse': 'browse',
+    '/dashboard/charity/food': 'browse',
+    '/dashboard/charity/surplus': 'browse',
     '/dashboard/charity/requests': 'my-requests',
     '/dashboard/charity/my-requests': 'my-requests',
+    '/dashboard/charity/request': 'my-requests',
     '/dashboard/charity/campaigns': 'campaigns',
+    '/dashboard/charity/campaign': 'campaigns',
+    '/dashboard/charity/relief-campaigns': 'campaigns',
     '/dashboard/charity/contributions': 'contributions',
+    '/dashboard/charity/contribution': 'contributions',
+    '/dashboard/charity/donations': 'contributions',
     '/dashboard/charity/partnerships': 'partnerships',
+    '/dashboard/charity/partnership': 'partnerships',
+    '/dashboard/charity/csr': 'partnerships',
     '/dashboard/charity/volunteers': 'volunteers',
+    '/dashboard/charity/volunteer': 'volunteers',
+    '/dashboard/charity/volunteer-drives': 'volunteers',
     '/dashboard/charity/impact': 'impact',
+    '/dashboard/charity/impact-tracker': 'impact',
+    '/dashboard/charity/stats': 'impact',
   }
 
   const [activeTab, setActiveTab] = useState(() => PATH_TO_TAB[window.location?.pathname] || 'overview')
@@ -92,6 +105,7 @@ export default function CharityDashboard() {
     if (location.pathname !== targetPath) {
       navigate(targetPath)
     }
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   const [loading, setLoading] = useState(true)
@@ -215,142 +229,7 @@ export default function CharityDashboard() {
     capacityPeople: 150,
   })
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
-    setLoading(true)
-    try {
-      const res = await profileApi.getCharityProfile()
-      if (res.data) {
-        setProfile(res.data)
-        setProfileForm({
-          charityName: res.data.charityName || '',
-          registrationNumber: res.data.registrationNumber || '',
-          description: res.data.description || '',
-          operatingArea: res.data.operatingArea || 'Colombo District',
-          logoUrl: res.data.logoUrl || '',
-          documentUrl: res.data.documentUrl || '',
-          contactPerson: res.data.contactPerson || user?.fullName || '',
-          contactEmail: res.data.contactEmail || user?.email || '',
-          contactPhone: res.data.contactPhone || user?.phoneNumber || '',
-          addressLine1: res.data.addressLine1 || '',
-          addressLine2: res.data.addressLine2 || '',
-          city: res.data.city || '',
-          district: res.data.district || 'Colombo',
-          latitude: res.data.latitude || 6.9271,
-          longitude: res.data.longitude || 79.8612,
-          capacityPeople: res.data.capacityPeople || 150,
-        })
-
-        // If verified, fetch available listings and my requests
-        if (res.data.verificationStatus === 'VERIFIED') {
-          await loadFeedAndRequests()
-        } else {
-          // If pending verification, still load live available listings to view
-          try {
-            const availableRes = await foodListingApi.getAvailable()
-            setAvailableListings(availableRes.data || [])
-          } catch (e) {
-            console.warn('Failed to load available listings for unverified charity', e)
-          }
-        }
-      }
-      await Promise.allSettled([
-        loadCampaigns(),
-        loadContributions(),
-        loadPartnerships(),
-        loadVolunteerDrives(),
-      ])
-    } catch (err) {
-      console.error('Failed to load charity profile', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadCampaigns = async () => {
-    try {
-      const res = await campaignApi.getMyCampaigns()
-      setCampaigns(res.data || [])
-    } catch (err) {
-      console.error('Error fetching charity campaigns', err)
-    }
-  }
-
-  const loadContributions = async () => {
-    try {
-      setLoadingContributions(true)
-      const res = await contributionApi.getCharityContributions()
-      setIncomingContributions(res.data || [])
-    } catch (err) {
-      console.error('Error fetching charity contributions', err)
-    } finally {
-      setLoadingContributions(false)
-    }
-  }
-
-  const loadCharityImpact = async (start = impactStart, end = impactEnd) => {
-    try {
-      setLoadingCharityImpact(true)
-      const params = {}
-      if (start) params.startDate = start
-      if (end) params.endDate = end
-      const res = await impactApi.getMyImpact(params)
-      setCharityImpact(res.data)
-    } catch (err) {
-      console.error('Error fetching charity impact', err)
-    } finally {
-      setLoadingCharityImpact(false)
-    }
-  }
-
-  const loadPartnerships = async () => {
-    try {
-      setLoadingPartnerships(true)
-      const res = await partnershipApi.getMyCharityPartnerships()
-      setPartnerships(res.data || [])
-    } catch (err) {
-      console.error('Error fetching charity partnerships', err)
-    } finally {
-      setLoadingPartnerships(false)
-    }
-  }
-
-  const loadFeedAndRequests = async () => {
-    try {
-      const [availableRes, requestsRes, campaignsRes, contributionsRes, partnershipsRes] = await Promise.all([
-        foodListingApi.getAvailable(),
-        foodRescueApi.getCharityRequests(),
-        campaignApi.getMyCampaigns(),
-        contributionApi.getCharityContributions(),
-        partnershipApi.getMyCharityPartnerships(),
-      ])
-      setAvailableListings(availableRes.data || [])
-      setMyRequests(requestsRes.data || [])
-      setCampaigns(campaignsRes.data || [])
-      setIncomingContributions(contributionsRes.data || [])
-      setPartnerships(partnershipsRes.data || [])
-    } catch (err) {
-      console.error('Error fetching available listings, requests, campaigns, or contributions', err)
-    }
-  }
-
-  const handleViewPartnershipDetails = async (partnership) => {
-    try {
-      const res = await partnershipApi.getPartnershipById(partnership.id)
-      setSelectedPartnership(res.data)
-      setIsPartnershipDetailsOpen(true)
-    } catch (err) {
-      setSelectedPartnership(partnership)
-      setIsPartnershipDetailsOpen(true)
-    }
-  }
-
-  // =========================================================================
-  // Volunteer Drives & Attendance State & Handlers
-  // =========================================================================
+  // Volunteer Drives & Attendance State
   const [volunteerDrives, setVolunteerDrives] = useState([])
   const [loadingVolunteerDrives, setLoadingVolunteerDrives] = useState(false)
   const [attendeesModalOpen, setAttendeesModalOpen] = useState(false)
@@ -378,18 +257,168 @@ export default function CharityDashboard() {
     contactPhone: '',
   })
 
+  // =========================================================================
+  // Independent, Resilient Data Loaders
+  // =========================================================================
+
+  const loadAvailableFood = async () => {
+    try {
+      const res = await foodListingApi.getAvailable()
+      setAvailableListings(Array.isArray(res.data) ? res.data : [])
+    } catch (err) {
+      console.warn('Available food listings not accessible or pending verification:', err?.response?.data?.message || err?.message)
+      setAvailableListings([])
+    }
+  }
+
+  const loadMyRequests = async () => {
+    try {
+      const res = await foodRescueApi.getCharityRequests()
+      setMyRequests(Array.isArray(res.data) ? res.data : [])
+    } catch (err) {
+      console.warn('Food rescue requests not accessible:', err?.response?.data?.message || err?.message)
+      setMyRequests([])
+    }
+  }
+
+  const loadCampaigns = async () => {
+    try {
+      const res = await campaignApi.getMyCampaigns()
+      setCampaigns(Array.isArray(res.data) ? res.data : [])
+    } catch (err) {
+      console.warn('Charity campaigns not accessible:', err?.response?.data?.message || err?.message)
+      setCampaigns([])
+    }
+  }
+
+  const loadContributions = async () => {
+    try {
+      setLoadingContributions(true)
+      const res = await contributionApi.getCharityContributions()
+      setIncomingContributions(Array.isArray(res.data) ? res.data : [])
+    } catch (err) {
+      console.warn('Charity contributions not accessible:', err?.response?.data?.message || err?.message)
+      setIncomingContributions([])
+    } finally {
+      setLoadingContributions(false)
+    }
+  }
+
+  const loadPartnerships = async () => {
+    try {
+      setLoadingPartnerships(true)
+      const res = await partnershipApi.getMyCharityPartnerships()
+      setPartnerships(Array.isArray(res.data) ? res.data : [])
+    } catch (err) {
+      console.warn('Charity partnerships not accessible:', err?.response?.data?.message || err?.message)
+      setPartnerships([])
+    } finally {
+      setLoadingPartnerships(false)
+    }
+  }
+
   const loadVolunteerDrives = async () => {
     try {
       setLoadingVolunteerDrives(true)
       const res = await volunteerApi.getOpportunities()
-      const myDrives = (res.data || []).filter(
+      const rawDrives = Array.isArray(res.data) ? res.data : []
+      const myDrives = rawDrives.filter(
         (opp) => opp.organizerUserId === user?.id || (profile?.id && opp.charityId === profile.id)
       )
-      setVolunteerDrives(myDrives.length > 0 ? myDrives : res.data || [])
+      setVolunteerDrives(myDrives.length > 0 ? myDrives : rawDrives)
     } catch (err) {
-      console.error('Failed to load volunteer drives:', err)
+      console.warn('Failed to load volunteer drives:', err?.response?.data?.message || err?.message)
+      setVolunteerDrives([])
     } finally {
       setLoadingVolunteerDrives(false)
+    }
+  }
+
+  const loadCharityImpact = async (start = impactStart, end = impactEnd) => {
+    try {
+      setLoadingCharityImpact(true)
+      const params = {}
+      if (start) params.startDate = start
+      if (end) params.endDate = end
+      const res = await impactApi.getMyImpact(params)
+      setCharityImpact(res.data || null)
+    } catch (err) {
+      console.warn('Charity impact not accessible:', err?.response?.data?.message || err?.message)
+      setCharityImpact(null)
+    } finally {
+      setLoadingCharityImpact(false)
+    }
+  }
+
+  const loadFeedAndRequests = async () => {
+    await Promise.allSettled([
+      loadAvailableFood(),
+      loadMyRequests(),
+    ])
+  }
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      // 1. Fetch Profile (only attempt if role is CHARITY to prevent 403 for ADMIN)
+      if (user?.role === 'CHARITY') {
+        try {
+          const res = await profileApi.getCharityProfile()
+          if (res?.data) {
+            setProfile(res.data)
+            setProfileForm({
+              charityName: res.data.charityName || '',
+              registrationNumber: res.data.registrationNumber || '',
+              description: res.data.description || '',
+              operatingArea: res.data.operatingArea || 'Colombo District',
+              logoUrl: res.data.logoUrl || '',
+              documentUrl: res.data.documentUrl || '',
+              contactPerson: res.data.contactPerson || user?.fullName || '',
+              contactEmail: res.data.contactEmail || user?.email || '',
+              contactPhone: res.data.contactPhone || user?.phoneNumber || '',
+              addressLine1: res.data.addressLine1 || '',
+              addressLine2: res.data.addressLine2 || '',
+              city: res.data.city || '',
+              district: res.data.district || 'Colombo',
+              latitude: res.data.latitude || 6.9271,
+              longitude: res.data.longitude || 79.8612,
+              capacityPeople: res.data.capacityPeople || 150,
+            })
+          }
+        } catch (profileErr) {
+          console.warn('Charity profile not yet created or unavailable:', profileErr?.message)
+        }
+      }
+
+      // 2. Load all operational datasets independently without fail-fast blocking
+      await Promise.allSettled([
+        loadAvailableFood(),
+        loadMyRequests(),
+        loadCampaigns(),
+        loadContributions(),
+        loadPartnerships(),
+        loadVolunteerDrives(),
+        loadCharityImpact(),
+      ])
+    } catch (err) {
+      console.error('Failed to initialize charity operations portal', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const handleViewPartnershipDetails = async (partnership) => {
+    try {
+      const res = await partnershipApi.getPartnershipById(partnership.id)
+      setSelectedPartnership(res.data)
+      setIsPartnershipDetailsOpen(true)
+    } catch (err) {
+      setSelectedPartnership(partnership)
+      setIsPartnershipDetailsOpen(true)
     }
   }
 
@@ -398,14 +427,17 @@ export default function CharityDashboard() {
     const cleanPath = (location.pathname || '').replace(/\/+$/, '')
     const matchedTab = PATH_TO_TAB[cleanPath] || PATH_TO_TAB[location.pathname] || 'overview'
     setActiveTab(matchedTab)
+    window.scrollTo({ top: 0, behavior: 'instant' })
     if (matchedTab === 'overview') {
       loadFeedAndRequests()
       loadCampaigns()
       loadContributions()
       loadPartnerships()
       loadVolunteerDrives()
-    } else if (matchedTab === 'browse' || matchedTab === 'my-requests') {
-      loadFeedAndRequests()
+    } else if (matchedTab === 'browse') {
+      loadAvailableFood()
+    } else if (matchedTab === 'my-requests') {
+      loadMyRequests()
     } else if (matchedTab === 'campaigns') {
       loadCampaigns()
     } else if (matchedTab === 'contributions') {
@@ -819,14 +851,22 @@ export default function CharityDashboard() {
     }
   }
 
+  // Safe array fallbacks to prevent TypeError during render
+  const safeListings = Array.isArray(availableListings) ? availableListings : []
+  const safeRequests = Array.isArray(myRequests) ? myRequests : []
+  const safeCampaigns = Array.isArray(campaigns) ? campaigns : []
+  const safeContributions = Array.isArray(incomingContributions) ? incomingContributions : []
+  const safePartnerships = Array.isArray(partnerships) ? partnerships : []
+  const safeVolunteerDrives = Array.isArray(volunteerDrives) ? volunteerDrives : []
+
   // Filter available listings by search term
-  const filteredListings = availableListings.filter((l) => {
-    const term = searchTerm.toLowerCase()
+  const filteredListings = safeListings.filter((l) => {
+    const term = (searchTerm || '').toLowerCase()
     return (
-      l.title?.toLowerCase().includes(term) ||
-      l.businessName?.toLowerCase().includes(term) ||
-      l.foodCategory?.toLowerCase().includes(term) ||
-      l.pickupAddress?.toLowerCase().includes(term)
+      l?.title?.toLowerCase().includes(term) ||
+      l?.businessName?.toLowerCase().includes(term) ||
+      l?.foodCategory?.toLowerCase().includes(term) ||
+      l?.pickupAddress?.toLowerCase().includes(term)
     )
   })
 
@@ -1150,8 +1190,8 @@ export default function CharityDashboard() {
     },
   ]
 
-  const totalRescuedBatches = myRequests.filter((r) => r.status === 'COLLECTED').length
-  const activeReservedBatches = myRequests.filter((r) => r.status === 'ACCEPTED').length
+  const totalRescuedBatches = safeRequests.filter((r) => r.status === 'COLLECTED').length
+  const activeReservedBatches = safeRequests.filter((r) => r.status === 'ACCEPTED').length
 
   if (loading) {
     return <Loader text="Loading charity operations portal..." />
@@ -1291,7 +1331,7 @@ export default function CharityDashboard() {
             <span className="text-sm text-muted">Available Batches</span>
             <ShoppingBag size={20} style={{ color: '#059669' }} />
           </div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{availableListings.length} Live</div>
+          <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{safeListings.length} Live</div>
         </Card>
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -1332,22 +1372,22 @@ export default function CharityDashboard() {
       >
         {[
           { id: 'overview', label: 'Charity Overview', icon: <LayoutDashboard size={17} /> },
-          { id: 'browse', label: `Available Food (${availableListings.length})`, icon: <ShoppingBag size={17} /> },
+          { id: 'browse', label: `Available Food (${safeListings.length})`, icon: <ShoppingBag size={17} /> },
           {
             id: 'my-requests',
-            label: `My Requests (${myRequests.length})`,
+            label: `My Requests (${safeRequests.length})`,
             icon: <ClipboardList size={17} />,
             badge: activeReservedBatches > 0 ? activeReservedBatches : null,
           },
-          { id: 'campaigns', label: `Relief Campaigns (${campaigns.length})`, icon: <Heart size={17} /> },
+          { id: 'campaigns', label: `Relief Campaigns (${safeCampaigns.length})`, icon: <Heart size={17} /> },
           {
             id: 'contributions',
-            label: `Received Contributions (${incomingContributions.length})`,
+            label: `Received Contributions (${safeContributions.length})`,
             icon: <Gift size={17} />,
-            badge: incomingContributions.filter((c) => c.status === 'PLEDGED').length > 0 ? incomingContributions.filter((c) => c.status === 'PLEDGED').length : null,
+            badge: safeContributions.filter((c) => c.status === 'PLEDGED').length > 0 ? safeContributions.filter((c) => c.status === 'PLEDGED').length : null,
           },
-          { id: 'partnerships', label: `CSR Partnerships (${partnerships.length})`, icon: <Handshake size={17} /> },
-          { id: 'volunteers', label: `Volunteer Drives (${volunteerDrives.length})`, icon: <Users size={17} /> },
+          { id: 'partnerships', label: `CSR Partnerships (${safePartnerships.length})`, icon: <Handshake size={17} /> },
+          { id: 'volunteers', label: `Volunteer Drives (${safeVolunteerDrives.length})`, icon: <Users size={17} /> },
           { id: 'impact', label: 'Verified Impact Tracker', icon: <Award size={17} /> },
         ].map((tab) => (
           <button
@@ -1446,7 +1486,7 @@ export default function CharityDashboard() {
                   <span>Surplus Marketplace</span>
                 </div>
                 <p style={{ fontSize: '0.85rem', color: '#14532d', margin: 0 }}>
-                  {availableListings.length} human-edible prepared batches live right now across verified restaurants.
+                  {safeListings.length} human-edible prepared batches live right now across verified restaurants.
                 </p>
               </div>
               <Button
@@ -1476,7 +1516,7 @@ export default function CharityDashboard() {
                   <span>Rural Relief Drives</span>
                 </div>
                 <p style={{ fontSize: '0.85rem', color: '#713f12', margin: 0 }}>
-                  {campaigns.length} community campaigns for water, dry rations, or school supplies in remote districts.
+                  {safeCampaigns.length} community campaigns for water, dry rations, or school supplies in remote districts.
                 </p>
               </div>
               <Button
@@ -1506,7 +1546,7 @@ export default function CharityDashboard() {
                   <span>Corporate CSR Sponsors</span>
                 </div>
                 <p style={{ fontSize: '0.85rem', color: '#4c1d95', margin: 0 }}>
-                  {partnerships.length} corporate sponsorship proposals. Lock agreements and reward verified patrons.
+                  {safePartnerships.length} corporate sponsorship proposals. Lock agreements and reward verified patrons.
                 </p>
               </div>
               <Button
@@ -1531,13 +1571,13 @@ export default function CharityDashboard() {
                 </Button>
               }
             >
-              {myRequests.length === 0 ? (
+              {safeRequests.length === 0 ? (
                 <div className="text-center text-muted p-4">
                   No rescue requests submitted yet. Browse the surplus marketplace to claim meals.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {myRequests.slice(0, 4).map((req) => (
+                  {safeRequests.slice(0, 4).map((req) => (
                     <div
                       key={req.id}
                       style={{
@@ -1581,13 +1621,13 @@ export default function CharityDashboard() {
                 </Button>
               }
             >
-              {incomingContributions.length === 0 ? (
+              {safeContributions.length === 0 ? (
                 <div className="text-center text-muted p-4">
                   No pledges recorded yet. Launch campaigns to receive community support.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {incomingContributions.slice(0, 4).map((contrib) => (
+                  {safeContributions.slice(0, 4).map((contrib) => (
                     <div
                       key={contrib.id}
                       style={{
@@ -1730,7 +1770,7 @@ export default function CharityDashboard() {
         >
           <Table
             columns={requestColumns}
-            data={myRequests}
+            data={safeRequests}
             emptyMessage="You have not requested any surplus food batches yet. Browse available food to send requests."
           />
         </Card>
@@ -1793,7 +1833,7 @@ export default function CharityDashboard() {
             </div>
           </div>
 
-          {campaigns.length === 0 ? (
+          {safeCampaigns.length === 0 ? (
             <Card>
               <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
                 <Heart size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem' }} />
@@ -1820,7 +1860,7 @@ export default function CharityDashboard() {
             </Card>
           ) : (
             <div className="grid grid-cols-2 gap-6">
-              {campaigns.map((camp) => (
+              {safeCampaigns.map((camp) => (
                 <Card key={camp.id} style={{ display: 'flex', flexDirection: 'column' }}>
                   {camp.coverImageUrl && (
                     <div style={{ height: '170px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', marginBottom: '1rem', backgroundColor: '#f1f5f9' }}>
@@ -1961,7 +2001,7 @@ export default function CharityDashboard() {
                 <span className="text-sm text-muted">Total Contributions</span>
                 <Gift size={20} style={{ color: 'var(--color-primary)' }} />
               </div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{incomingContributions.length} Total</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{safeContributions.length} Total</div>
             </Card>
             <Card>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -1969,7 +2009,7 @@ export default function CharityDashboard() {
                 <Clock size={20} style={{ color: '#f59e0b' }} />
               </div>
               <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#b45309' }}>
-                {incomingContributions.filter((c) => c.status === 'PLEDGED').length} Pledged
+                {safeContributions.filter((c) => c.status === 'PLEDGED').length} Pledged
               </div>
             </Card>
             <Card>
@@ -1978,7 +2018,7 @@ export default function CharityDashboard() {
                 <CheckCircle2 size={20} style={{ color: '#0284c7' }} />
               </div>
               <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0369a1' }}>
-                {incomingContributions.filter((c) => c.status === 'CONFIRMED').length} Confirmed
+                {safeContributions.filter((c) => c.status === 'CONFIRMED').length} Confirmed
               </div>
             </Card>
             <Card>
@@ -1987,7 +2027,7 @@ export default function CharityDashboard() {
                 <Camera size={20} style={{ color: '#10b981' }} />
               </div>
               <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#047857' }}>
-                {incomingContributions.filter((c) => c.status === 'DISTRIBUTED').length} Delivered
+                {safeContributions.filter((c) => c.status === 'DISTRIBUTED').length} Delivered
               </div>
             </Card>
           </div>
@@ -2044,7 +2084,7 @@ export default function CharityDashboard() {
 
           {/* Contributions Table */}
           <Card>
-            {incomingContributions.length === 0 ? (
+            {safeContributions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3.5rem 1rem' }}>
                 <Gift size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem' }} />
                 <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>
@@ -2057,7 +2097,7 @@ export default function CharityDashboard() {
             ) : (
               <Table
                 columns={contributionColumns}
-                data={incomingContributions.filter((c) => {
+                data={safeContributions.filter((c) => {
                   if (contributionStatusFilter === 'ALL') return true
                   return c.status === contributionStatusFilter
                 })}
@@ -2128,25 +2168,25 @@ export default function CharityDashboard() {
             <Card>
               <div className="text-xs text-muted">Incoming Proposals</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#d97706' }}>
-                {partnerships.filter((p) => p.status === 'PROPOSED').length}
+                {safePartnerships.filter((p) => p.status === 'PROPOSED').length}
               </div>
             </Card>
             <Card>
               <div className="text-xs text-muted">In Negotiation</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#7c3aed' }}>
-                {partnerships.filter((p) => p.status === 'COUNTERED').length}
+                {safePartnerships.filter((p) => p.status === 'COUNTERED').length}
               </div>
             </Card>
             <Card>
               <div className="text-xs text-muted">Agreed / Delivered</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0284c7' }}>
-                {partnerships.filter((p) => p.status === 'AGREED' || p.status === 'DELIVERED').length}
+                {safePartnerships.filter((p) => p.status === 'AGREED' || p.status === 'DELIVERED').length}
               </div>
             </Card>
             <Card>
               <div className="text-xs text-muted">Completed & Recognized</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669' }}>
-                {partnerships.filter((p) => p.status === 'COMPLETED').length}
+                {safePartnerships.filter((p) => p.status === 'COMPLETED').length}
               </div>
             </Card>
           </div>
@@ -2181,7 +2221,7 @@ export default function CharityDashboard() {
           >
             {loadingPartnerships ? (
               <Loader message="Loading CSR partnerships..." />
-            ) : partnerships.filter((p) => {
+            ) : safePartnerships.filter((p) => {
                 if (partnershipStatusFilter === 'ALL') return true
                 return p.status === partnershipStatusFilter
               }).length === 0 ? (
@@ -2197,7 +2237,7 @@ export default function CharityDashboard() {
             ) : (
               <Table
                 columns={partnershipColumns}
-                data={partnerships.filter((p) => {
+                data={safePartnerships.filter((p) => {
                   if (partnershipStatusFilter === 'ALL') return true
                   return p.status === partnershipStatusFilter
                 })}
@@ -2283,7 +2323,7 @@ export default function CharityDashboard() {
               <div style={{ padding: '2rem 0', textAlign: 'center' }}>
                 <Loader message="Loading volunteer opportunities..." />
               </div>
-            ) : volunteerDrives.length === 0 ? (
+            ) : safeVolunteerDrives.length === 0 ? (
               <div style={{ padding: '3rem 0', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                 <Users size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />
                 <h4 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>No Volunteer Drives Created</h4>
@@ -2377,7 +2417,7 @@ export default function CharityDashboard() {
                     ),
                   },
                 ]}
-                data={volunteerDrives}
+                data={safeVolunteerDrives}
               />
             )}
           </Card>

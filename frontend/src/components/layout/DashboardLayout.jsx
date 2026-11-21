@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import {
@@ -38,6 +38,11 @@ export default function DashboardLayout({ title = 'Dashboard' }) {
     logout()
     navigate('/login')
   }
+
+  // Ensure every menu click / route change resets scroll position to top
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [location.pathname])
 
   // Define sidebar navigation items for each role
   const getNavItems = () => {
@@ -124,8 +129,13 @@ export default function DashboardLayout({ title = 'Dashboard' }) {
 
     // Charity Aliases
     if (target === '/dashboard/charity' && (current === '/dashboard/charity' || current === '/dashboard/charity/overview')) return true
-    if (target === '/dashboard/charity/available-food' && (current === '/dashboard/charity/browse' || current === '/dashboard/charity/available-food')) return true
-    if (target === '/dashboard/charity/requests' && (current === '/dashboard/charity/my-requests' || current === '/dashboard/charity/requests')) return true
+    if (target === '/dashboard/charity/available-food' && (current === '/dashboard/charity/browse' || current === '/dashboard/charity/available-food' || current === '/dashboard/charity/food' || current === '/dashboard/charity/surplus')) return true
+    if (target === '/dashboard/charity/requests' && (current === '/dashboard/charity/my-requests' || current === '/dashboard/charity/requests' || current === '/dashboard/charity/request')) return true
+    if (target === '/dashboard/charity/campaigns' && (current === '/dashboard/charity/campaigns' || current === '/dashboard/charity/campaign' || current === '/dashboard/charity/relief-campaigns')) return true
+    if (target === '/dashboard/charity/contributions' && (current === '/dashboard/charity/contributions' || current === '/dashboard/charity/contribution' || current === '/dashboard/charity/donations')) return true
+    if (target === '/dashboard/charity/partnerships' && (current === '/dashboard/charity/partnerships' || current === '/dashboard/charity/partnership' || current === '/dashboard/charity/csr')) return true
+    if (target === '/dashboard/charity/volunteers' && (current === '/dashboard/charity/volunteers' || current === '/dashboard/charity/volunteer' || current === '/dashboard/charity/volunteer-drives')) return true
+    if (target === '/dashboard/charity/impact' && (current === '/dashboard/charity/impact' || current === '/dashboard/charity/impact-tracker' || current === '/dashboard/charity/stats')) return true
 
     // Business Aliases
     if (target === '/dashboard/business' && (current === '/dashboard/business' || current === '/dashboard/business/overview')) return true
@@ -154,6 +164,22 @@ export default function DashboardLayout({ title = 'Dashboard' }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+      {/* Mobile Backdrop */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 29,
+          }}
+          className="sidebar-backdrop"
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         style={{
@@ -220,7 +246,10 @@ export default function DashboardLayout({ title = 'Dashboard' }) {
               <Link
                 key={item.path}
                 to={item.path}
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => {
+                  setSidebarOpen(false)
+                  window.scrollTo({ top: 0, behavior: 'instant' })
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',

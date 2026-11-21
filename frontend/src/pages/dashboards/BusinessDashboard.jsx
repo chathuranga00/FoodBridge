@@ -98,6 +98,7 @@ export default function BusinessDashboard() {
     if (location.pathname !== targetPath) {
       navigate(targetPath)
     }
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   const [loading, setLoading] = useState(true)
@@ -416,6 +417,7 @@ export default function BusinessDashboard() {
     const matchedTab = PATH_TO_TAB[cleanPath] || PATH_TO_TAB[location.pathname]
     if (matchedTab) {
       setActiveTab(matchedTab)
+      window.scrollTo({ top: 0, behavior: 'instant' })
       if (matchedTab === 'listings' || matchedTab === 'requests') loadListingsAndRequests()
       if (matchedTab === 'grocery-offers' || matchedTab === 'redemptions') loadGroceryData()
       if (matchedTab === 'impact') loadBusinessImpact()

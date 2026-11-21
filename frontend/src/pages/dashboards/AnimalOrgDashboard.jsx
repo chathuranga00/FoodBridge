@@ -102,6 +102,7 @@ export default function AnimalOrgDashboard() {
     if (location.pathname !== targetPath) {
       navigate(targetPath)
     }
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   // Synchronize route changes (sidebar clicks) to active tab
@@ -110,6 +111,7 @@ export default function AnimalOrgDashboard() {
     const matchedTab = PATH_TO_TAB[cleanPath] || PATH_TO_TAB[location.pathname]
     if (matchedTab) {
       setActiveTab(matchedTab)
+      window.scrollTo({ top: 0, behavior: 'instant' })
       loadAllData()
     }
   }, [location.pathname])
